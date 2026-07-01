@@ -2,7 +2,7 @@
 
 ## Why this exists
 
-Spelling practice with a worksheet is boring. Kids tune out, parents nag, and nothing sticks.
+I built this for my son in first grade. Spelling practice with a worksheet is boring — he'd tune out in two minutes.
 
 WordNest grew out of a simple idea: what if a parent could paste in this week's spelling list and the child could practice right now, on the screen, with color and sound feedback — no account, no subscription, no app store? Just open a file.
 
