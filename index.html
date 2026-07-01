@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🪺 WordNest</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
     <style>
@@ -15,7 +16,7 @@
             --word-len: 6;
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { height: 100%; overflow: hidden; font-family: 'Comic Sans MS', 'Chalkboard SE', 'Segoe UI', cursive; }
+        html, body { height: 100%; overflow: hidden; font-family: 'Fredoka One', cursive; }
         button, input, textarea { font-family: inherit; }
 
         /* Screen toggling */
@@ -140,25 +141,11 @@
 
 <!-- ═══════════════ PERSISTENT HEADER ═══════════════ -->
 <header class="site-header bg-white dark:bg-[#202124] border-b border-gray-200 dark:border-[#3C4043] shadow-sm" style="height:var(--header-h);">
-    <div class="max-w-3xl w-full mx-auto h-full flex items-center gap-3 px-4">
-
-        <!-- Logo -->
-        <div class="flex-shrink-0 flex items-center justify-center" style="width:clamp(38px,6.5vh,58px);height:clamp(38px,6.5vh,58px);">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" role="img" aria-label="WordNest logo" class="w-full h-full">
-              <circle cx="20" cy="26" r="13" fill="#1A73E8"/>
-              <text x="20" y="26" text-anchor="middle" dominant-baseline="middle" font-family="Arial Black, Impact, sans-serif" font-size="16" font-weight="900" fill="white">W</text>
-              <circle cx="40" cy="26" r="13" fill="#34A853"/>
-              <text x="40" y="26" text-anchor="middle" dominant-baseline="middle" font-family="Arial Black, Impact, sans-serif" font-size="16" font-weight="900" fill="white">N</text>
-              <path d="M2,37 Q7,58 30,59 Q53,58 58,37" stroke="#5D4037" stroke-width="4" fill="none" stroke-linecap="round"/>
-              <path d="M2,37 Q15,31 30,34 Q45,31 58,37" stroke="#8D6E63" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-              <path d="M7,45 Q18,40 30,43 Q42,40 53,45" stroke="#795548" stroke-width="2" fill="none" stroke-linecap="round"/>
-              <path d="M11,52 Q21,48 30,50 Q39,48 49,52" stroke="#8D6E63" stroke-width="1.5" fill="none" stroke-linecap="round"/>
-            </svg>
-        </div>
+    <div class="max-w-[840px] w-full mx-auto h-full flex items-center gap-3" style="padding-left:var(--pad-h);padding-right:var(--pad-h)">
 
         <!-- Brand -->
         <div class="flex flex-col justify-center min-w-0 flex-1">
-            <div class="font-extrabold leading-none tracking-tight bg-gradient-to-r from-blue-600 via-blue-500 to-green-500 dark:from-blue-400 dark:via-blue-300 dark:to-green-400 bg-clip-text text-transparent"
+            <div class="leading-none bg-gradient-to-r from-blue-600 via-blue-500 to-green-500 dark:from-blue-400 dark:via-blue-300 dark:to-green-400 bg-clip-text text-transparent"
                  style="font-size:clamp(1.2em,3.2vh,1.9em)">WordNest</div>
             <div class="mt-1">
                 <span class="inline-block text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-[#3C4043] rounded-full px-2 py-0.5 leading-none"
@@ -207,7 +194,7 @@
          style="padding:clamp(20px,3.5vh,32px) clamp(22px,4vw,38px);animation:pop-in 0.2s ease;scrollbar-width:thin">
 
         <div class="font-extrabold text-center bg-gradient-to-r from-blue-600 to-green-500 dark:from-blue-400 dark:to-green-400 bg-clip-text text-transparent mb-1"
-             style="font-size:clamp(1.3em,3.5vh,1.85em)">Welcome to 🪺 WordNest!</div>
+             style="font-size:clamp(1.3em,3.5vh,1.85em)">Welcome to WordNest!</div>
         <div class="text-center text-gray-400 dark:text-gray-500 mb-4" style="font-size:clamp(0.8em,1.7vh,0.95em)">
             A fun word spelling practice game for kids
         </div>
@@ -217,7 +204,7 @@
                 <div class="flex-shrink-0 text-2xl">✍️</div>
                 <div class="flex flex-col gap-0.5">
                     <strong class="text-gray-800 dark:text-gray-200" style="font-size:clamp(0.85em,1.9vh,1.02em)">Enter your words</strong>
-                    <span class="text-gray-500 dark:text-gray-400" style="font-size:clamp(0.74em,1.55vh,0.88em)">Type the words to practise, one per line, then press Start</span>
+                    <span class="text-gray-500 dark:text-gray-400" style="font-size:clamp(0.74em,1.55vh,0.88em)">Type the words to practice, one per line, then press Start</span>
                 </div>
             </div>
             <div class="flex items-center gap-3 rounded-xl border-l-4 border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 p-3">
@@ -231,7 +218,7 @@
                 <div class="flex-shrink-0 text-2xl">⭐⭐</div>
                 <div class="flex flex-col gap-0.5">
                     <strong class="text-gray-800 dark:text-gray-200" style="font-size:clamp(0.85em,1.9vh,1.02em)">Level 2 — Ask for a hint</strong>
-                    <span class="text-gray-500 dark:text-gray-400" style="font-size:clamp(0.74em,1.55vh,0.88em)">Press 💡 Hint if you're stuck — parents unlock it by solving a quick maths problem</span>
+                    <span class="text-gray-500 dark:text-gray-400" style="font-size:clamp(0.74em,1.55vh,0.88em)">Press 💡 Hint if you're stuck — parents unlock it by solving a quick math problem</span>
                 </div>
             </div>
             <div class="flex items-center gap-3 rounded-xl border-l-4 border-green-500 bg-green-50 dark:bg-green-900/20 p-3">
@@ -273,6 +260,8 @@ dog
 bird
 fish
 apple"></textarea>
+
+    <div id="word-warning" class="hidden flex-shrink-0 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 px-4 py-2" style="font-size:clamp(0.8em,1.7vh,0.95em)"></div>
 
     <div class="flex-shrink-0 flex justify-center">
         <button class="font-bold rounded-full bg-blue-600 dark:bg-blue-500 text-white px-8 py-3 transition-all shadow-[0_4px_0_rgba(0,0,0,0.2)] hover:bg-blue-700 dark:hover:bg-blue-400 hover:-translate-y-0.5 hover:shadow-[0_6px_0_rgba(0,0,0,0.2)] active:translate-y-0.5"
@@ -379,7 +368,7 @@ function showScreen(id) {
 function startGame() {
     const raw = document.getElementById('words-input').value.trim();
     if (!raw) { alert('Please enter at least one word!'); return; }
-    words = raw.split(/[\n,]+/).map(w => w.trim().toUpperCase()).filter(w => /^[A-Z]+$/.test(w));
+    words = raw.split(/[\n,]+/).map(w => w.trim().toUpperCase()).filter(w => /^[A-Z]+$/.test(w) && w.length <= 45);
     if (words.length === 0) { alert('Please enter valid words (letters only, one per line)!'); return; }
     words.forEach(w => { wrongAttempts[w] = 0; });
     wordIdx = 0; level = 1;
@@ -659,6 +648,25 @@ if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-s
 }
 
 if (!localStorage.getItem('spellbee-visited')) showWelcome();
+
+function findTooLongWords(raw) {
+    return raw
+        .split(/[\n,]+/)
+        .map(w => w.trim().toUpperCase())
+        .filter(w => /^[A-Z]+$/.test(w) && w.length > 45);
+}
+
+document.getElementById('words-input').addEventListener('input', () => {
+    const tooLong = findTooLongWords(document.getElementById('words-input').value);
+    const box = document.getElementById('word-warning');
+    if (tooLong.length > 0) {
+        const list = tooLong.map(w => `"${w.charAt(0) + w.slice(1).toLowerCase()}" (${w.length} letters)`).join(', ');
+        box.textContent = `⚠️ Too long — max 45 letters: ${list}`;
+        box.classList.remove('hidden');
+    } else {
+        box.classList.add('hidden');
+    }
+});
 
 document.getElementById('verify-answer').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); submitVerify(); }

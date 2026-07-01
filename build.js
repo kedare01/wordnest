@@ -1,15 +1,16 @@
 #!/usr/bin/env node
-'use strict';
 
-const fs   = require('fs');
-const path = require('path');
+import fs   from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 async function build() {
-    // Lazy-require so missing deps give a clear error message
     let minify, JavaScriptObfuscator;
     try {
-        ({ minify } = require('html-minifier-terser'));
-        JavaScriptObfuscator = require('javascript-obfuscator');
+        ({ minify } = await import('html-minifier-terser'));
+        JavaScriptObfuscator = (await import('javascript-obfuscator')).default;
     } catch {
         console.error('\n  ✗  Dependencies not installed. Run: npm install\n');
         process.exit(1);
