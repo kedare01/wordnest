@@ -1,0 +1,13 @@
+{
+  "name": "wordnest",
+  "version": "1.0.0",
+  "description": "Word spelling practice game for kids",
+  "scripts": {
+    "build": "node build.js",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "html-minifier-terser": "^7.2.0",
+    "javascript-obfuscator": "^4.1.1"
+  }
+}

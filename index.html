@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🪺 WordNest</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' }</script>
+    <style>
+        :root {
+            --header-h: clamp(54px, 9vh, 76px);
+            --pad-v:    clamp(6px,  1.1vh, 14px);
+            --pad-h:    clamp(10px, 1.8vw, 20px);
+            --gap:      clamp(4px,  0.7vh, 10px);
+            --word-len: 6;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html, body { height: 100%; overflow: hidden; font-family: 'Comic Sans MS', 'Chalkboard SE', 'Segoe UI', cursive; }
+        button, input, textarea { font-family: inherit; }
+
+        /* Screen toggling */
+        .screen {
+            display: none;
+            height: calc(100vh - var(--header-h));
+            max-width: 840px; margin: 0 auto;
+            padding: var(--pad-v) var(--pad-h);
+            flex-direction: column; gap: var(--gap);
+            overflow: hidden; position: relative; z-index: 1;
+        }
+        .screen.active { display: flex; }
+
+        /* Modal visibility */
+        .modal-overlay { display: none; }
+        .modal-overlay.open { display: flex; }
+
+        /* Keyboard key — clamp sizing, JS manages bg/color */
+        .key {
+            width: clamp(28px, 8.4vw, 66px);
+            height: clamp(34px, 9.5vh, 70px);
+            border: clamp(2px, 0.3vh, 3px) solid rgba(0,0,0,0.18);
+            border-radius: clamp(6px, 1.2vh, 11px);
+            font-size: clamp(0.82em, 3.6vh, 1.45em); font-weight: bold;
+            cursor: pointer; font-family: inherit;
+            box-shadow: 0 clamp(2px,0.5vh,4px) 0 rgba(0,0,0,0.25);
+            transition: all 0.08s;
+            display: flex; align-items: center; justify-content: center;
+            user-select: none; -webkit-user-select: none;
+        }
+        .key:hover  { filter: brightness(1.18) saturate(1.1); transform: translateY(-3px) scale(1.05); }
+        .key:active { filter: brightness(0.88); transform: translateY(2px) scale(0.97); box-shadow: 0 1px 0 rgba(0,0,0,0.2); }
+        .key.hint-glow {
+            background: #FFF176 !important; border-color: #F9A825 !important;
+            box-shadow: 0 4px 0 #F57F17, 0 0 16px rgba(255,200,0,0.8) !important;
+            animation: key-pulse 0.45s ease infinite alternate;
+        }
+        .kb-row {
+            display: flex; justify-content: center;
+            gap: clamp(3px, 0.45vw, 6px); margin: clamp(2px, 0.35vh, 5px) 0;
+        }
+
+        /* Word slots — width uses --word-len CSS var */
+        .slot-wrap { display: flex; flex-direction: column; align-items: center; gap: clamp(2px,0.4vh,5px); }
+        .slot {
+            width: clamp(28px, calc((min(100vw,840px) - var(--pad-h)*2) / var(--word-len) - clamp(3px,0.6vw,9px)), 64px);
+            height: clamp(40px, 9vh, 72px);
+            border-bottom: clamp(3px, 0.5vh, 5px) solid #DADCE0;
+            display: flex; align-items: center; justify-content: center;
+            font-size: clamp(1.1em, 3.8vh, 2.2em); font-weight: bold; color: #202124;
+            transition: border-color 0.2s;
+        }
+        .slot.active     { border-bottom-color: #1A73E8; animation: slot-pulse 0.9s ease infinite alternate; }
+        .slot.filled     { border-bottom-color: #34A853; }
+        .slot.letter-pop { animation: letter-pop 0.42s cubic-bezier(0.34,1.56,0.64,1) both; }
+        .slot.shake      { animation: shake 0.4s ease; }
+
+        html.dark .slot              { color: #E8EAED; border-bottom-color: #5F6368; }
+        html.dark .slot.active       { border-bottom-color: #8AB4F8; }
+        html.dark .slot.filled       { border-bottom-color: #81C995; }
+
+        /* Hint arrow — JS-created */
+        .hint-arrow { font-size: clamp(0.75em,2vh,1.35em); opacity: 0; transition: opacity 0.2s; animation: bounce-down 0.55s ease infinite alternate; }
+        .hint-arrow.visible { opacity: 1; }
+
+        /* Feedback — JS resets className so all states live here */
+        .feedback {
+            flex-shrink: 0; text-align: center;
+            font-size: clamp(1em, 2.8vh, 1.6em);
+            height: clamp(34px, 5.5vh, 55px);
+            display: flex; align-items: center; justify-content: center;
+        }
+        .feedback.correct   { color: #34A853; }
+        .feedback.wrong     { color: #EA4335; }
+        .feedback.celebrate { animation: celebrate-rock 0.4s ease infinite alternate; }
+        html.dark .feedback.correct   { color: #81C995; }
+        html.dark .feedback.wrong     { color: #F28B82; }
+
+        /* Animated background — Gmail-toned light / dark */
+        body::before {
+            content: ''; position: fixed; inset: 0; z-index: -1;
+            background: linear-gradient(270deg, #F8F9FA, #EAF0FE, #E8F5E9, #FFF8E1, #F8F9FA);
+            background-size: 400% 400%;
+            animation: bg-drift 16s ease infinite;
+        }
+        html.dark body::before {
+            background: linear-gradient(270deg, #202124, #1e2028, #1a1f2e, #1e2025, #202124);
+            background-size: 400% 400%;
+        }
+        .site-header { position: relative; z-index: 50; }
+
+        /* JS-created animated elements */
+        .confetti-piece { position: fixed; top: -14px; pointer-events: none; z-index: 300; animation: confetti-fall linear forwards; }
+        .star-pop       { position: fixed; pointer-events: none; z-index: 200; font-size: clamp(1.3em,3.5vh,2.2em); transform: translateX(-50%); animation: star-float 0.85s ease-out forwards; }
+        .level-up-overlay { position: fixed; inset: 0; z-index: 250; display: flex; align-items: center; justify-content: center; pointer-events: none; animation: overlay-fade 1.5s ease forwards; }
+        .level-up-text  { font-size: clamp(2.5em,9vw,5em); font-weight: bold; text-align: center; color: white; text-shadow: 0 0 30px rgba(26,115,232,0.9), 3px 3px 0 rgba(0,0,0,0.25); animation: lu-pop 1.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+        .bg-float       { position: fixed; bottom: -60px; pointer-events: none; z-index: 0; opacity: 0.12; animation: float-up linear infinite; }
+
+        /* Stats table body rows — built by JS */
+        #stats-body td { padding: clamp(8px,1.3vh,12px) 14px; border-bottom: 1px solid #E8EAED; font-size: clamp(0.88em,1.9vh,1.1em); }
+        #stats-body tr:nth-child(even) td { background: #F8F9FA; }
+        html.dark #stats-body td { border-bottom-color: #3C4043; color: #E8EAED; }
+        html.dark #stats-body tr:nth-child(even) td { background: #2D2E30; }
+
+        /* Keyframes */
+        @keyframes bounce-down    { from{transform:translateY(-4px)} to{transform:translateY(4px)} }
+        @keyframes slot-pulse     { from{border-bottom-color:#1A73E8} to{border-bottom-color:#4285F4;box-shadow:0 5px 0 rgba(26,115,232,0.2)} }
+        @keyframes letter-pop     { 0%{transform:scale(0) rotate(-20deg);opacity:0} 60%{transform:scale(1.35) rotate(6deg);opacity:1} 80%{transform:scale(0.92) rotate(-3deg)} 100%{transform:scale(1) rotate(0deg);opacity:1} }
+        @keyframes shake          { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+        @keyframes key-pulse      { from{transform:scale(1)} to{transform:scale(1.12)} }
+        @keyframes celebrate-rock { from{transform:scale(1) rotate(-2deg);color:#1A73E8} to{transform:scale(1.1) rotate(2deg);color:#34A853} }
+        @keyframes star-float     { 0%{transform:translateX(-50%) scale(0);opacity:1} 45%{transform:translateX(-50%) translateY(-30px) scale(1.5);opacity:1} 100%{transform:translateX(-50%) translateY(-75px) scale(0.6);opacity:0} }
+        @keyframes confetti-fall  { 0%{transform:translateY(0) rotate(0deg) scale(1);opacity:1} 85%{opacity:1} 100%{transform:translateY(105vh) rotate(820deg) scale(0.6);opacity:0} }
+        @keyframes overlay-fade   { 0%{opacity:0} 15%{opacity:1} 70%{opacity:1} 100%{opacity:0} }
+        @keyframes lu-pop         { 0%{transform:scale(0) rotate(-15deg)} 35%{transform:scale(1.2) rotate(5deg)} 55%{transform:scale(0.94) rotate(-2deg)} 70%{transform:scale(1.02)} 100%{transform:scale(1.05)} }
+        @keyframes float-up       { 0%{transform:translateY(0) rotate(0deg)} 100%{transform:translateY(-115vh) rotate(360deg)} }
+        @keyframes bg-drift       { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+        @keyframes pop-in         { from{transform:scale(0.8);opacity:0} to{transform:scale(1);opacity:1} }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════ PERSISTENT HEADER ═══════════════ -->
+<header class="site-header bg-white dark:bg-[#202124] border-b border-gray-200 dark:border-[#3C4043] shadow-sm" style="height:var(--header-h);">
+    <div class="max-w-3xl w-full mx-auto h-full flex items-center gap-3 px-4">
+
+        <!-- Logo -->
+        <div class="flex-shrink-0 flex items-center justify-center" style="width:clamp(38px,6.5vh,58px);height:clamp(38px,6.5vh,58px);">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" role="img" aria-label="WordNest logo" class="w-full h-full">
+              <circle cx="20" cy="26" r="13" fill="#1A73E8"/>
+              <text x="20" y="26" text-anchor="middle" dominant-baseline="middle" font-family="Arial Black, Impact, sans-serif" font-size="16" font-weight="900" fill="white">W</text>
+              <circle cx="40" cy="26" r="13" fill="#34A853"/>
+              <text x="40" y="26" text-anchor="middle" dominant-baseline="middle" font-family="Arial Black, Impact, sans-serif" font-size="16" font-weight="900" fill="white">N</text>
+              <path d="M2,37 Q7,58 30,59 Q53,58 58,37" stroke="#5D4037" stroke-width="4" fill="none" stroke-linecap="round"/>
+              <path d="M2,37 Q15,31 30,34 Q45,31 58,37" stroke="#8D6E63" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+              <path d="M7,45 Q18,40 30,43 Q42,40 53,45" stroke="#795548" stroke-width="2" fill="none" stroke-linecap="round"/>
+              <path d="M11,52 Q21,48 30,50 Q39,48 49,52" stroke="#8D6E63" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+            </svg>
+        </div>
+
+        <!-- Brand -->
+        <div class="flex flex-col justify-center min-w-0 flex-1">
+            <div class="font-extrabold leading-none tracking-tight bg-gradient-to-r from-blue-600 via-blue-500 to-green-500 dark:from-blue-400 dark:via-blue-300 dark:to-green-400 bg-clip-text text-transparent"
+                 style="font-size:clamp(1.2em,3.2vh,1.9em)">WordNest</div>
+            <div class="mt-1">
+                <span class="inline-block text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-[#3C4043] rounded-full px-2 py-0.5 leading-none"
+                      style="font-size:clamp(0.55em,1.3vh,0.78em)">Learn words, build skills</span>
+            </div>
+        </div>
+
+        <!-- Dark mode toggle -->
+        <button onclick="toggleDarkMode()" title="Toggle dark mode"
+                class="flex-shrink-0 rounded-full flex items-center justify-center text-gray-500 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-[#3C4043] transition-all"
+                style="width:clamp(28px,5.5vh,42px);height:clamp(28px,5.5vh,42px);font-size:clamp(0.9em,2.2vh,1.2em)">
+            <span id="theme-icon">🌙</span>
+        </button>
+
+        <!-- Help button -->
+        <button onclick="showWelcome()" title="How to play"
+                class="flex-shrink-0 rounded-full border border-gray-300 dark:border-[#5F6368] bg-white dark:bg-[#202124] text-blue-600 dark:text-blue-400 font-bold flex items-center justify-center transition-all hover:bg-blue-50 dark:hover:bg-[#3C4043] hover:border-blue-400 dark:hover:border-blue-400"
+                style="width:clamp(28px,5.5vh,42px);height:clamp(28px,5.5vh,42px);font-size:clamp(0.9em,2.2vh,1.2em)">?</button>
+    </div>
+</header>
+
+<!-- ═══════════════ PARENT VERIFY MODAL ═══════════════ -->
+<div class="modal-overlay fixed inset-0 bg-black/50 z-[100] items-center justify-center" id="verify-modal">
+    <div class="bg-white dark:bg-[#2D2E30] rounded-2xl shadow-2xl text-center w-[90%] max-w-sm"
+         style="padding:clamp(20px,3.5vh,32px) clamp(22px,4vw,38px);animation:pop-in 0.2s ease">
+        <div class="text-gray-500 dark:text-gray-400 mb-2" style="font-size:clamp(1em,2.2vh,1.2em)">
+            🔒 Parent check — solve this to unlock the hint:
+        </div>
+        <div class="font-bold text-blue-600 dark:text-blue-400 my-3" id="verify-question" style="font-size:clamp(1.8em,4vh,2.4em)"></div>
+        <input class="text-center border-2 border-gray-300 dark:border-[#5F6368] dark:bg-[#3C4043] dark:text-gray-100 rounded-xl p-2 outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors w-28"
+               style="font-size:clamp(1.3em,3vh,1.8em)"
+               type="number" id="verify-answer" placeholder="?" min="0" max="81">
+        <div class="text-red-500 dark:text-red-400 min-h-[24px] mt-2" id="verify-error"></div>
+        <div class="mt-4 flex gap-3 justify-center">
+            <button class="font-bold rounded-full bg-blue-600 dark:bg-blue-500 text-white px-6 py-2.5 transition-all shadow-[0_4px_0_rgba(0,0,0,0.2)] hover:bg-blue-700 dark:hover:bg-blue-400 hover:-translate-y-0.5 active:translate-y-0.5"
+                    style="font-size:clamp(0.95em,2.3vh,1.3em)" onclick="submitVerify()">✔ OK</button>
+            <button class="font-bold rounded-full bg-gray-200 dark:bg-[#3C4043] text-gray-700 dark:text-gray-300 px-6 py-2.5 transition-all shadow-[0_4px_0_rgba(0,0,0,0.15)] hover:bg-gray-300 dark:hover:bg-[#5F6368] hover:-translate-y-0.5 active:translate-y-0.5"
+                    style="font-size:clamp(0.95em,2.3vh,1.3em)" onclick="closeVerify()">✖ Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ WELCOME MODAL ═══════════════ -->
+<div class="modal-overlay fixed inset-0 bg-black/50 z-[100] items-center justify-center" id="welcome-modal">
+    <div class="bg-white dark:bg-[#2D2E30] rounded-2xl shadow-2xl w-[90%] max-w-lg max-h-[88vh] overflow-y-auto text-left"
+         style="padding:clamp(20px,3.5vh,32px) clamp(22px,4vw,38px);animation:pop-in 0.2s ease;scrollbar-width:thin">
+
+        <div class="font-extrabold text-center bg-gradient-to-r from-blue-600 to-green-500 dark:from-blue-400 dark:to-green-400 bg-clip-text text-transparent mb-1"
+             style="font-size:clamp(1.3em,3.5vh,1.85em)">Welcome to 🪺 WordNest!</div>
+        <div class="text-center text-gray-400 dark:text-gray-500 mb-4" style="font-size:clamp(0.8em,1.7vh,0.95em)">
+            A fun word spelling practice game for kids
+        </div>
+
+        <div class="flex flex-col gap-2.5">
+            <div class="flex items-center gap-3 rounded-xl border-l-4 border-blue-500 bg-blue-50 dark:bg-blue-900/20 p-3">
+                <div class="flex-shrink-0 text-2xl">✍️</div>
+                <div class="flex flex-col gap-0.5">
+                    <strong class="text-gray-800 dark:text-gray-200" style="font-size:clamp(0.85em,1.9vh,1.02em)">Enter your words</strong>
+                    <span class="text-gray-500 dark:text-gray-400" style="font-size:clamp(0.74em,1.55vh,0.88em)">Type the words to practise, one per line, then press Start</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 rounded-xl border-l-4 border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 p-3">
+                <div class="flex-shrink-0 text-2xl">⭐</div>
+                <div class="flex flex-col gap-0.5">
+                    <strong class="text-gray-800 dark:text-gray-200" style="font-size:clamp(0.85em,1.9vh,1.02em)">Level 1 — Follow the glow</strong>
+                    <span class="text-gray-500 dark:text-gray-400" style="font-size:clamp(0.74em,1.55vh,0.88em)">The correct key lights up and a bouncing arrow points to it</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 rounded-xl border-l-4 border-red-400 bg-red-50 dark:bg-red-900/20 p-3">
+                <div class="flex-shrink-0 text-2xl">⭐⭐</div>
+                <div class="flex flex-col gap-0.5">
+                    <strong class="text-gray-800 dark:text-gray-200" style="font-size:clamp(0.85em,1.9vh,1.02em)">Level 2 — Ask for a hint</strong>
+                    <span class="text-gray-500 dark:text-gray-400" style="font-size:clamp(0.74em,1.55vh,0.88em)">Press 💡 Hint if you're stuck — parents unlock it by solving a quick maths problem</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 rounded-xl border-l-4 border-green-500 bg-green-50 dark:bg-green-900/20 p-3">
+                <div class="flex-shrink-0 text-2xl">⭐⭐⭐</div>
+                <div class="flex flex-col gap-0.5">
+                    <strong class="text-gray-800 dark:text-gray-200" style="font-size:clamp(0.85em,1.9vh,1.02em)">Level 3 — On your own!</strong>
+                    <span class="text-gray-500 dark:text-gray-400" style="font-size:clamp(0.74em,1.55vh,0.88em)">No hints this time — use the keyboard and remember what you learned</span>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 rounded-xl border-l-4 border-blue-400 bg-blue-50 dark:bg-blue-900/20 p-3">
+                <div class="flex-shrink-0 text-2xl">🏆</div>
+                <div class="flex flex-col gap-0.5">
+                    <strong class="text-gray-800 dark:text-gray-200" style="font-size:clamp(0.85em,1.9vh,1.02em)">See your score</strong>
+                    <span class="text-gray-500 dark:text-gray-400" style="font-size:clamp(0.74em,1.55vh,0.88em)">After all words are done, see how many tries each word took</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-5 text-center">
+            <button class="font-bold rounded-full bg-blue-600 dark:bg-blue-500 text-white px-8 py-3 transition-all shadow-[0_4px_0_rgba(0,0,0,0.2)] hover:bg-blue-700 dark:hover:bg-blue-400 hover:-translate-y-0.5 active:translate-y-0.5"
+                    style="font-size:clamp(0.95em,2.3vh,1.3em)" onclick="closeWelcome()">Let's Play! 🚀</button>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════ SETUP SCREEN ═══════════════ -->
+<div id="setup-screen" class="screen active">
+    <div class="flex-shrink-0 text-center text-gray-500 dark:text-gray-400" style="font-size:clamp(0.9em,2vh,1.1em)">
+        Enter the words you want to practice:
+    </div>
+
+    <textarea id="words-input"
+              class="flex-1 min-h-0 resize-none rounded-2xl border-2 border-gray-300 dark:border-[#5F6368] bg-white dark:bg-[#2D2E30] dark:text-gray-100 outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
+              style="font-size:clamp(1em,2.2vh,1.3em);padding:clamp(10px,1.5vh,16px)"
+              placeholder="Enter words to practice (one per line):
+
+cat
+dog
+bird
+fish
+apple"></textarea>
+
+    <div class="flex-shrink-0 flex justify-center">
+        <button class="font-bold rounded-full bg-blue-600 dark:bg-blue-500 text-white px-8 py-3 transition-all shadow-[0_4px_0_rgba(0,0,0,0.2)] hover:bg-blue-700 dark:hover:bg-blue-400 hover:-translate-y-0.5 hover:shadow-[0_6px_0_rgba(0,0,0,0.2)] active:translate-y-0.5"
+                style="font-size:clamp(0.95em,2.3vh,1.3em)" onclick="startGame()">Start Practice! 🚀</button>
+    </div>
+</div>
+
+<!-- ═══════════════ GAME SCREEN ═══════════════ -->
+<div id="game-screen" class="screen">
+
+    <div class="flex-shrink-0 flex justify-between items-center">
+        <div class="font-bold rounded-[20px] text-white px-4 py-2 shadow-sm" id="level-badge"
+             style="font-size:clamp(0.88em,1.9vh,1.12em)">Level 1</div>
+        <div class="text-gray-500 dark:text-gray-400" id="word-counter"
+             style="font-size:clamp(0.8em,1.7vh,1em)">Word 1 of ?</div>
+    </div>
+
+    <div class="flex-shrink-0 text-center bg-white dark:bg-[#2D2E30] shadow-sm text-gray-600 dark:text-gray-300"
+         id="level-desc"
+         style="border-radius:clamp(8px,1.4vh,13px);padding:clamp(5px,0.9vh,10px) 12px;font-size:clamp(0.76em,1.65vh,0.96em)"></div>
+
+    <div class="flex-shrink-0 flex justify-center items-end flex-wrap" id="word-display"
+         style="gap:clamp(3px,0.6vw,9px)"></div>
+
+    <div class="feedback" id="feedback"></div>
+
+    <div class="flex-shrink-0 flex items-center justify-center" style="height:clamp(44px,8vh,68px)">
+        <button class="font-bold rounded-full bg-amber-500 dark:bg-amber-600 text-white px-6 py-2.5 transition-all shadow-[0_4px_0_rgba(0,0,0,0.2)] hover:bg-amber-600 dark:hover:bg-amber-500 hover:-translate-y-0.5 active:translate-y-0.5"
+                style="font-size:clamp(0.95em,2.3vh,1.3em);display:none" id="hint-btn" onclick="showHint()">💡 Show Hint</button>
+        <button class="font-bold rounded-full bg-green-600 dark:bg-green-500 text-white px-6 py-2.5 transition-all shadow-[0_4px_0_rgba(0,0,0,0.2)] hover:bg-green-700 dark:hover:bg-green-400 hover:-translate-y-0.5 active:translate-y-0.5"
+                style="font-size:clamp(0.95em,2.3vh,1.3em);display:none" id="next-btn" onclick="goNext()">Next ➡️</button>
+    </div>
+
+    <div class="flex-1 min-h-0 flex flex-col justify-center" id="keyboard"></div>
+</div>
+
+<!-- ═══════════════ STATS SCREEN ═══════════════ -->
+<div id="stats-screen" class="screen">
+
+    <div class="flex-shrink-0 text-center font-extrabold text-blue-600 dark:text-blue-400"
+         style="font-size:clamp(1.5em,4vh,2.5em)">🏆 You Did It!</div>
+    <div class="flex-shrink-0 text-center text-gray-500 dark:text-gray-400"
+         style="font-size:clamp(0.85em,1.9vh,1.1em)">Here's how you did:</div>
+
+    <div class="flex-1 min-h-0 overflow-y-auto rounded-2xl shadow-md dark:shadow-[0_4px_15px_rgba(0,0,0,0.4)]">
+        <table class="w-full border-collapse">
+            <thead>
+                <tr>
+                    <th class="bg-blue-600 dark:bg-blue-700 text-white text-left sticky top-0"
+                        style="padding:clamp(8px,1.5vh,14px);font-size:clamp(0.88em,2vh,1.1em)">Word</th>
+                    <th class="bg-blue-600 dark:bg-blue-700 text-white text-center sticky top-0"
+                        style="padding:clamp(8px,1.5vh,14px);font-size:clamp(0.88em,2vh,1.1em)">Wrong Tries</th>
+                    <th class="bg-blue-600 dark:bg-blue-700 text-white text-left sticky top-0"
+                        style="padding:clamp(8px,1.5vh,14px);font-size:clamp(0.88em,2vh,1.1em)">Score</th>
+                </tr>
+            </thead>
+            <tbody id="stats-body"></tbody>
+        </table>
+    </div>
+
+    <div class="flex-shrink-0 flex justify-center">
+        <button class="font-bold rounded-full bg-blue-600 dark:bg-blue-500 text-white px-8 py-3 transition-all shadow-[0_4px_0_rgba(0,0,0,0.2)] hover:bg-blue-700 dark:hover:bg-blue-400 hover:-translate-y-0.5 hover:shadow-[0_6px_0_rgba(0,0,0,0.2)] active:translate-y-0.5"
+                style="font-size:clamp(0.95em,2.3vh,1.3em)" onclick="backToSetup()">Practice Again! 🔄</button>
+    </div>
+</div>
+
+<script>
+const QWERTY = [
+    ['Q','W','E','R','T','Y','U','I','O','P'],
+    ['A','S','D','F','G','H','J','K','L'],
+    ['Z','X','C','V','B','N','M']
+];
+
+const KEY_COLORS = {
+    Q:'#FF6B6B', W:'#FF9F43', E:'#FECA57', R:'#26DE81', T:'#2BCBBA',
+    Y:'#45AAF2', U:'#A55EEA', I:'#FD9644', O:'#FC5C65', P:'#0FB9B1',
+    A:'#6C5CE7', S:'#FDCB6E', D:'#E17055', F:'#00B894', G:'#0984E3',
+    H:'#E84393', J:'#6AB04C', K:'#F9CA24', L:'#D63031', Z:'#00CEC9',
+    X:'#FD79A8', C:'#BADC58', V:'#F0932B', B:'#EB4D4B', N:'#7ED6DF',
+    M:'#686DE0'
+};
+
+const LEVEL_DESC = [
+    '',
+    '🟡 Level 1 — Watch the glowing key and the arrow pointing to it!',
+    '🔵 Level 2 — Press 💡 Hint if you need help finding the key!',
+    '🟢 Level 3 — No hints! Type the word all by yourself! 💪'
+];
+
+let words = [];
+let wordIdx = 0;
+let level = 1;
+let letterIdx = 0;
+let wrongAttempts = {};
+let levelDone = false;
+let feedbackTimer = null;
+let hintTimer = null;
+
+function showScreen(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+}
+
+function startGame() {
+    const raw = document.getElementById('words-input').value.trim();
+    if (!raw) { alert('Please enter at least one word!'); return; }
+    words = raw.split(/[\n,]+/).map(w => w.trim().toUpperCase()).filter(w => /^[A-Z]+$/.test(w));
+    if (words.length === 0) { alert('Please enter valid words (letters only, one per line)!'); return; }
+    words.forEach(w => { wrongAttempts[w] = 0; });
+    wordIdx = 0; level = 1;
+    buildKeyboard(); loadState(); showScreen('game-screen');
+}
+
+function buildKeyboard() {
+    const kb = document.getElementById('keyboard');
+    kb.innerHTML = '';
+    QWERTY.forEach(row => {
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'kb-row';
+        row.forEach(ch => {
+            const btn = document.createElement('button');
+            btn.className = 'key';
+            btn.id = 'key-' + ch;
+            btn.textContent = ch;
+            btn.style.background = KEY_COLORS[ch] || '#888';
+            btn.style.color = 'white';
+            btn.style.borderColor = 'rgba(0,0,0,0.18)';
+            btn.style.textShadow = '0 1px 3px rgba(0,0,0,0.3)';
+            btn.addEventListener('click', () => onKey(ch));
+            rowDiv.appendChild(btn);
+        });
+        kb.appendChild(rowDiv);
+    });
+}
+
+function restoreKey(el) {
+    const ch = el.textContent;
+    el.style.background = KEY_COLORS[ch] || '#888';
+    el.style.color = 'white';
+    el.style.borderColor = 'rgba(0,0,0,0.18)';
+    el.style.boxShadow = '';
+    el.classList.remove('hint-glow');
+}
+function resetKeys() { document.querySelectorAll('.key').forEach(restoreKey); }
+
+function setKeyGlow(ch, on) {
+    const el = document.getElementById('key-' + ch);
+    if (!el) return;
+    if (on) {
+        el.style.background = '#FFF176'; el.style.color = '#333';
+        el.style.borderColor = '#F9A825'; el.style.boxShadow = '0 0 20px rgba(255,200,0,0.85)';
+        el.classList.add('hint-glow');
+    } else { restoreKey(el); }
+}
+
+function flashKey(ch, isCorrect) {
+    const el = document.getElementById('key-' + ch);
+    if (!el) return;
+    if (isCorrect) { el.style.background = '#C8E6C9'; el.style.color = '#1B5E20'; el.style.borderColor = '#34A853'; }
+    else           { el.style.background = '#FFCDD2'; el.style.color = '#B71C1C'; el.style.borderColor = '#EA4335'; }
+    setTimeout(() => restoreKey(el), 480);
+}
+
+function launchConfetti(count) {
+    const colors = ['#EA4335','#FBBC04','#34A853','#1A73E8','#4285F4','#0F9D58','#F4B400','#DB4437'];
+    for (let i = 0; i < count; i++) {
+        const el = document.createElement('div');
+        el.className = 'confetti-piece';
+        const size = 7 + Math.random() * 9;
+        el.style.cssText = `left:${8+Math.random()*84}vw;background:${colors[i%colors.length]};` +
+            `width:${size}px;height:${size}px;border-radius:${Math.random()>.5?'50%':'3px'};` +
+            `animation-duration:${1.2+Math.random()*1.6}s;animation-delay:${Math.random()*0.6}s`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 3200);
+    }
+}
+
+function popStar(keyEl) {
+    const emojis = ['⭐','✨','🌟','💫','🎉'];
+    const rect = keyEl.getBoundingClientRect();
+    const el = document.createElement('div');
+    el.className = 'star-pop';
+    el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    el.style.left = (rect.left + rect.width / 2) + 'px';
+    el.style.top  = rect.top + 'px';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 900);
+}
+
+function showLevelUp(msg) {
+    const el = document.createElement('div');
+    el.className = 'level-up-overlay';
+    el.innerHTML = `<div class="level-up-text">${msg}</div>`;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 1600);
+}
+
+function createBgFloats() {
+    const items = ['⭐','🌈','🎈','🦋','🌸','💫','🎉','🌟','🍀','🎀'];
+    items.forEach((emoji, i) => {
+        const el = document.createElement('div');
+        el.className = 'bg-float';
+        el.textContent = emoji;
+        el.style.cssText = `left:${4+i*9.5}%;font-size:${1.2+Math.random()*1.2}em;` +
+            `animation-duration:${14+i*2.5}s;animation-delay:${i*1.8}s`;
+        document.body.appendChild(el);
+    });
+}
+
+function loadState() {
+    const word = words[wordIdx];
+    letterIdx = 0; levelDone = false; clearTimeout(hintTimer);
+    document.documentElement.style.setProperty('--word-len', word.length);
+
+    const badgeColors = ['', '#1A73E8', '#F9AB00', '#34A853'];
+    const badgeShadow = ['', '#1557B0', '#E37400', '#1E7E34'];
+    const badge = document.getElementById('level-badge');
+    badge.textContent = `${'⭐'.repeat(level)} Level ${level}`;
+    badge.style.background = badgeColors[level];
+    badge.style.boxShadow  = `0 3px 0 ${badgeShadow[level]}`;
+    badge.style.color = 'white';
+
+    document.getElementById('word-counter').textContent = `Word ${wordIdx + 1} of ${words.length}`;
+    document.getElementById('level-desc').textContent   = LEVEL_DESC[level];
+
+    const display = document.getElementById('word-display');
+    display.innerHTML = '';
+    for (let i = 0; i < word.length; i++) {
+        const wrap = document.createElement('div'); wrap.className = 'slot-wrap';
+        const arrow = document.createElement('div'); arrow.className = 'hint-arrow'; arrow.id = `arrow-${i}`; arrow.textContent = '⬇️';
+        const slot  = document.createElement('div'); slot.className = 'slot' + (i === 0 ? ' active' : ''); slot.id = `slot-${i}`;
+        wrap.appendChild(arrow); wrap.appendChild(slot); display.appendChild(wrap);
+    }
+
+    document.getElementById('next-btn').style.display = 'none';
+    const hintBtn = document.getElementById('hint-btn');
+    hintBtn.style.display = level === 2 ? 'inline-block' : 'none';
+    hintBtn.disabled = false; hintBtn.textContent = '💡 Show Hint';
+    document.getElementById('feedback').textContent = '';
+    document.getElementById('feedback').className = 'feedback';
+    resetKeys();
+    if (level === 1) applyHint1();
+}
+
+function applyHint1() {
+    const ch = words[wordIdx][letterIdx];
+    setKeyGlow(ch, true);
+    const arrow = document.getElementById(`arrow-${letterIdx}`);
+    if (arrow) arrow.classList.add('visible');
+}
+function clearHint1(idx) {
+    const ch = words[wordIdx][idx];
+    setKeyGlow(ch, false);
+    const arrow = document.getElementById(`arrow-${idx}`);
+    if (arrow) arrow.classList.remove('visible');
+}
+
+let verifyAnswer = 0;
+function showHint() { if (levelDone) return; openVerify(); }
+function openVerify() {
+    const a = Math.floor(Math.random() * 9) + 1;
+    const b = Math.floor(Math.random() * 9) + 1;
+    verifyAnswer = a * b;
+    document.getElementById('verify-question').textContent = `${a} × ${b} = ?`;
+    document.getElementById('verify-answer').value = '';
+    document.getElementById('verify-error').textContent = '';
+    document.getElementById('verify-modal').classList.add('open');
+    setTimeout(() => document.getElementById('verify-answer').focus(), 50);
+}
+function closeVerify() { document.getElementById('verify-modal').classList.remove('open'); }
+function submitVerify() {
+    const val = parseInt(document.getElementById('verify-answer').value, 10);
+    if (isNaN(val)) { document.getElementById('verify-error').textContent = 'Please enter a number.'; return; }
+    if (val !== verifyAnswer) {
+        document.getElementById('verify-error').textContent = '❌ Not quite — try again!';
+        document.getElementById('verify-answer').value = '';
+        document.getElementById('verify-answer').focus();
+        return;
+    }
+    closeVerify(); grantHint();
+}
+function grantHint() {
+    if (levelDone) return;
+    const ch = words[wordIdx][letterIdx];
+    setKeyGlow(ch, true);
+    const btn = document.getElementById('hint-btn');
+    btn.disabled = true; clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => { setKeyGlow(ch, false); if (!levelDone) btn.disabled = false; }, 2500);
+}
+
+function onKey(ch) {
+    if (levelDone) return;
+    const word = words[wordIdx];
+    const expected = word[letterIdx];
+    if (ch === expected) {
+        if (level === 1) clearHint1(letterIdx);
+        if (level === 2) { clearTimeout(hintTimer); setKeyGlow(ch, false); }
+        flashKey(ch, true);
+        const keyEl = document.getElementById('key-' + ch);
+        const slot  = document.getElementById(`slot-${letterIdx}`);
+        slot.textContent = ch;
+        slot.style.color = KEY_COLORS[ch] || '#34A853';
+        slot.classList.remove('active', 'shake', 'letter-pop');
+        void slot.offsetWidth;
+        slot.classList.add('filled', 'letter-pop');
+        popStar(keyEl);
+        letterIdx++;
+        setFeedback('✅ Great!', 'correct', 700);
+        if (letterIdx >= word.length) {
+            levelDone = true; resetKeys(); clearTimeout(hintTimer);
+            document.getElementById('hint-btn').style.display = 'none';
+            setFeedback('🌟 Amazing! 🌟', 'celebrate', 0);
+            document.getElementById('next-btn').style.display = 'inline-block';
+            if (level === 3) launchConfetti(55);
+        } else {
+            document.getElementById(`slot-${letterIdx}`).classList.add('active');
+            if (level === 1) applyHint1();
+            if (level === 2) document.getElementById('hint-btn').disabled = false;
+        }
+    } else {
+        wrongAttempts[word]++;
+        flashKey(ch, false);
+        const slot = document.getElementById(`slot-${letterIdx}`);
+        slot.classList.add('shake');
+        setTimeout(() => slot.classList.remove('shake'), 400);
+        setFeedback('❌ Try again!', 'wrong', 950);
+    }
+}
+
+function setFeedback(msg, cls, clearAfter) {
+    clearTimeout(feedbackTimer);
+    const fb = document.getElementById('feedback');
+    fb.textContent = msg; fb.className = 'feedback ' + cls;
+    if (clearAfter > 0) feedbackTimer = setTimeout(() => { fb.textContent = ''; fb.className = 'feedback'; }, clearAfter);
+}
+
+function goNext() {
+    document.getElementById('next-btn').style.display = 'none';
+    if (level < 3) {
+        level++;
+        showLevelUp(`${'⭐'.repeat(level)}<br>Level ${level}!`);
+        setTimeout(loadState, 700);
+    } else {
+        wordIdx++; level = 1;
+        if (wordIdx >= words.length) { showStats(); }
+        else { showLevelUp('🎯 Next Word!'); setTimeout(loadState, 700); }
+    }
+}
+
+function showStats() {
+    showScreen('stats-screen');
+    setTimeout(() => launchConfetti(80), 200);
+    const tbody = document.getElementById('stats-body');
+    tbody.innerHTML = '';
+    words.forEach(w => {
+        const n = wrongAttempts[w];
+        const score = n === 0 ? '🥇 Perfect!' : n <= 3 ? '🥈 Well done!' : n <= 8 ? '🥉 Good try!' : '💪 Keep practicing!';
+        const display = w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td><strong>${display}</strong></td><td style="text-align:center">${n}</td><td>${score}</td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function backToSetup() { showScreen('setup-screen'); }
+
+function showWelcome()  { document.getElementById('welcome-modal').classList.add('open'); }
+function closeWelcome() { document.getElementById('welcome-modal').classList.remove('open'); localStorage.setItem('spellbee-visited', '1'); }
+
+function toggleDarkMode() {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('wordnest-theme', isDark ? 'dark' : 'light');
+    document.getElementById('theme-icon').textContent = isDark ? '☀️' : '🌙';
+}
+
+// ── Init ──────────────────────────────────────────────
+createBgFloats();
+
+// Respect saved theme or OS preference
+const savedTheme = localStorage.getItem('wordnest-theme');
+if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    document.documentElement.classList.add('dark');
+    document.getElementById('theme-icon').textContent = '☀️';
+}
+
+if (!localStorage.getItem('spellbee-visited')) showWelcome();
+
+document.getElementById('verify-answer').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); submitVerify(); }
+});
+
+document.addEventListener('keydown', e => {
+    const ch = e.key.toUpperCase();
+    if (e.key.length === 1 && /^[A-Z]$/i.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        if (document.getElementById('game-screen').classList.contains('active')) { e.preventDefault(); onKey(ch); }
+    }
+    if ((e.key === 'Enter' || e.key === ' ') && document.getElementById('game-screen').classList.contains('active')) {
+        const nextBtn = document.getElementById('next-btn');
+        if (nextBtn.style.display !== 'none') { e.preventDefault(); goNext(); }
+    }
+});
+</script>
+</body>
+</html>
