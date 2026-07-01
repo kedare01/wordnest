@@ -5,6 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🪺 WordNest</title>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-ZYDRMY9XT2"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-ZYDRMY9XT2');
+    </script>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class' }</script>
     <style>
@@ -374,6 +381,7 @@ function startGame() {
     if (words.length === 0) { alert('Please enter valid words (letters only, one per line)!'); return; }
     words.forEach(w => { wrongAttempts[w] = 0; });
     wordIdx = 0; level = 1;
+    gtag('event', 'game_started', { word_count: words.length });
     buildKeyboard(); loadState(); showScreen('game-screen');
 }
 
@@ -602,6 +610,7 @@ function setFeedback(msg, cls, clearAfter) {
 
 function goNext() {
     document.getElementById('next-btn').style.display = 'none';
+    gtag('event', 'level_completed', { level: level, word_count: words.length });
     if (level < 3) {
         level++;
         showLevelUp(`${'⭐'.repeat(level)}<br>Level ${level}!`);
@@ -615,6 +624,7 @@ function goNext() {
 
 function showStats() {
     showScreen('stats-screen');
+    gtag('event', 'game_completed', { word_count: words.length });
     setTimeout(() => launchConfetti(80), 200);
     const tbody = document.getElementById('stats-body');
     tbody.innerHTML = '';
@@ -628,7 +638,7 @@ function showStats() {
     });
 }
 
-function backToSetup() { showScreen('setup-screen'); }
+function backToSetup() { gtag('event', 'practice_again'); showScreen('setup-screen'); }
 
 function showWelcome()  { document.getElementById('welcome-modal').classList.add('open'); }
 function closeWelcome() { document.getElementById('welcome-modal').classList.remove('open'); localStorage.setItem('spellbee-visited', '1'); }
