@@ -41,6 +41,8 @@ Everything lives in `index.html`: inline `<style>`, HTML markup, and an inline `
 
 **Confetti** fires only on Level 3 completion (`launchConfetti(55)`) and on the stats screen (`launchConfetti(80)`) — not on Level 1/2 completions.
 
+**Word pronunciation:** `speakWord()` uses the Web Speech API (`speechSynthesis`) to auto-speak the current word every time `loadState()` runs (new word or level transition). The 🔊 Hear Word button lets the player replay it on demand. Words are stored uppercase but spoken as `Word.charAt(0) + rest.toLowerCase()` — feeding an all-caps string to `SpeechSynthesisUtterance` makes some engines spell it letter-by-letter instead of pronouncing it. The button is hidden at init if `speechSynthesis` isn't in `window`.
+
 **Word validation:** `startGame()` silently drops non-alpha entries and words longer than 45 letters. A real-time `input` listener on `#words-input` calls `findTooLongWords()` and shows `#word-warning` before the user presses Start.
 
 **Init sequence:** at script load time, `createBgFloats()` creates the ambient floating emoji elements, then dark mode is restored from `localStorage`, then the welcome modal is shown on first visit.

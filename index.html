@@ -330,6 +330,11 @@ apple"></textarea>
          id="level-desc"
          style="border-radius:clamp(8px,1.4vh,13px);padding:clamp(5px,0.9vh,10px) 12px;font-size:clamp(0.76em,1.65vh,0.96em)"></div>
 
+    <div class="flex-shrink-0 flex justify-center">
+        <button class="font-bold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 transition-all hover:bg-blue-200 dark:hover:bg-blue-900/50 active:translate-y-0.5"
+                style="font-size:clamp(0.8em,1.7vh,1em);padding:clamp(4px,0.8vh,7px) 14px" id="speak-btn" onclick="speakWord()">🔊 Hear Word</button>
+    </div>
+
     <div class="flex-shrink-0 flex justify-center items-end flex-wrap" id="word-display"
          style="gap:clamp(3px,0.6vw,9px)"></div>
 
@@ -552,6 +557,18 @@ function loadState() {
     document.getElementById('feedback').className = 'feedback';
     resetKeys();
     if (level === 1) applyHint1();
+    speakWord();
+}
+
+function speakWord() {
+    if (!('speechSynthesis' in window)) return;
+    const word = words[wordIdx];
+    if (!word) return;
+    const spoken = word.charAt(0) + word.slice(1).toLowerCase();
+    speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(spoken);
+    utter.rate = 0.85;
+    speechSynthesis.speak(utter);
 }
 
 function applyHint1() {
@@ -698,6 +715,8 @@ if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-s
 }
 
 if (!localStorage.getItem('spellbee-visited')) showWelcome();
+
+if (!('speechSynthesis' in window)) document.getElementById('speak-btn').style.display = 'none';
 
 function findTooLongWords(raw) {
     return raw
