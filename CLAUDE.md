@@ -4,26 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**WordNest** — single-file browser spelling game for kids (`index.html`). Open directly in any browser for development. No server needed.
-
-## Commands
-
-```
-npm install         # first time only
-npm run build       # outputs dist/index.html
-npm run clean       # removes dist/
-npm test            # run unit tests (vitest)
-npm run test:watch  # vitest in watch mode
-```
-
-## Build pipeline
-
-`build.js` runs two passes over `index.html`:
-
-1. **JS obfuscation** — `javascript-obfuscator` renames internal identifiers to `_0x…` hex names, base64-encodes string literals, and shuffles the string array. `renameGlobals: false` keeps top-level function names intact so HTML `onclick="…"` attributes still work.
-2. **HTML/CSS minification** — `html-minifier-terser` collapses whitespace, strips comments, and minifies inline CSS. JS is left untouched here (already handled in step 1).
-
-Distribute `dist/index.html`; keep `index.html` as the editable source.
+**WordNest** — single-file browser spelling game for kids (`index.html`). Open directly in any browser; no server, no build step, no dependencies. Hosted as-is on GitHub Pages, which serves `index.html` from the repo root directly.
 
 ## Architecture
 
@@ -91,14 +72,3 @@ The following classes are set/toggled by JS and must remain defined in the `<sty
 `screen`, `screen.active`, `modal-overlay`, `modal-overlay.open`, `key`, `key.hint-glow`, `kb-row`, `slot-wrap`, `slot`, `slot.active`, `slot.filled`, `slot.letter-pop`, `slot.shake`, `hint-arrow`, `hint-arrow.visible`, `feedback`, `feedback.correct`, `feedback.wrong`, `feedback.celebrate`, `confetti-piece`, `star-pop`, `level-up-overlay`, `level-up-text`, `bg-float`
 
 **Critical:** `setFeedback()` does `fb.className = 'feedback ' + cls`, which wipes every class on the element. All `.feedback` layout and state styles must live in `<style>` — never add Tailwind utilities to the feedback element or they will be lost on the first key press.
-
-## Unit tests
-
-Pure logic is extracted to `src/logic.js` (ES module) and tested with Vitest in `test/logic.test.js`. The exports there are the **source of truth** — `index.html` contains equivalent inline definitions for the browser bundle. When changing logic, update both files.
-
-Exported from `src/logic.js`:
-- `parseWords(raw)` — splits textarea input, uppercases, drops non-alpha and words longer than `MAX_WORD_LENGTH`
-- `findTooLongWords(raw)` — returns words that exceed `MAX_WORD_LENGTH`; used for real-time setup-screen warnings
-- `scoreLabel(n)` — medal label for a wrong-attempt count
-- `checkVerify(inputStr, expected)` — validates the parent math-check answer
-- `QWERTY`, `KEY_COLORS`, `LEVEL_DESC`, `MAX_WORD_LENGTH` (= 45, the length of *pneumonoultramicroscopicsilicovolcanoconiosis*)

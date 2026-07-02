@@ -38,37 +38,7 @@ Words must be letters only. Maximum 45 letters (the length of *pneumonoultramicr
 
 ## Development
 
-Requires Node.js (for the build step and tests only — not for playing).
-
-```bash
-npm install         # first time only
-
-# Development
-npm test            # run unit tests
-npm run test:watch  # tests in watch mode
-
-# Production
-npm run build       # outputs dist/index.html (obfuscated + minified)
-npm run clean       # remove dist/
-```
-
-The source file is `index.html`. Open it directly in a browser — no dev server needed. Edit and refresh.
-
-`dist/index.html` is the file to distribute. It is obfuscated and minified but functionally identical.
-
----
-
-## Project layout
-
-```
-index.html          source (edit this)
-src/logic.js        pure game logic as an ES module (testable)
-test/logic.test.js  Vitest unit tests
-build.js            build script (obfuscation + minification)
-dist/index.html     built output (generated, do not edit)
-```
-
-`src/logic.js` and the inline script in `index.html` define the same functions. `src/logic.js` is the testable source of truth; `index.html` carries equivalent inline definitions for the browser bundle.
+There's no build step. `index.html` is the entire app — edit it and refresh your browser.
 
 ---
 
@@ -77,5 +47,3 @@ dist/index.html     built output (generated, do not edit)
 - No framework, no bundler, no backend
 - [Tailwind CSS Play CDN](https://tailwindcss.com/docs/installation/play-cdn) — requires internet
 - [Fredoka One](https://fonts.google.com/specimen/Fredoka+One) via Google Fonts — requires internet
-- Vitest for unit tests
-- `javascript-obfuscator` + `html-minifier-terser` for the build step
