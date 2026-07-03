@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://kedare01.github.io/wordnest/sitemap.xml
