@@ -61,8 +61,15 @@
             --word-len: 6;
         }
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-        html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: 'Fredoka One', cursive; }
-        button, input, textarea { font-family: inherit; }
+        /* Two-font system: Fredoka One for playful game chrome (headings, buttons, badges,
+           letters), system sans for anything meant to be read carefully (body copy, tables,
+           inputs) — a single display face everywhere hurt legibility and had no bold weight
+           to build hierarchy with. */
+        html, body { height: 100%; height: 100dvh; overflow: hidden; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
+        input, textarea { font-family: inherit; }
+        /* body-qualified so this reliably beats Tailwind's injected preflight (button{font-family:inherit}),
+           which loads after this stylesheet and ties on specificity with a plain `button` selector */
+        body button { font-family: 'Fredoka One', cursive; }
 
         /* Screen toggling */
         .screen {
@@ -88,7 +95,7 @@
             border: clamp(2px, 0.3vh, 3px) solid rgba(0,0,0,0.18);
             border-radius: clamp(6px, 1.2vh, 11px);
             font-size: clamp(0.82em, 3.6vh, 1.45em); font-weight: bold;
-            cursor: pointer; font-family: inherit;
+            cursor: pointer; font-family: 'Fredoka One', cursive;
             box-shadow: 0 clamp(2px,0.5vh,4px) 0 rgba(0,0,0,0.25);
             transition: all 0.08s;
             display: flex; align-items: center; justify-content: center;
@@ -106,24 +113,28 @@
             gap: clamp(3px, 0.45vw, 6px); margin: clamp(2px, 0.35vh, 5px) 0;
         }
 
-        /* Word slots — width uses --word-len CSS var */
+        /* Word slots — width uses --word-len CSS var. Boxed (not just underlined) so an
+           empty slot reads as "type here", not as a segment of a progress bar. */
         .slot-wrap { display: flex; flex-direction: column; align-items: center; gap: clamp(2px,0.4vh,5px); }
         .slot {
             width: clamp(28px, calc((min(100vw,840px) - var(--pad-h)*2) / var(--word-len) - clamp(3px,0.6vw,9px)), 64px);
             height: clamp(40px, 9vh, 72px);
-            border-bottom: clamp(3px, 0.5vh, 5px) solid #DADCE0;
+            background: #F1F3F4;
+            border: clamp(2px, 0.35vh, 3px) solid #DADCE0;
+            border-radius: clamp(6px, 1.1vh, 12px);
             display: flex; align-items: center; justify-content: center;
             font-size: clamp(1.1em, 3.8vh, 2.2em); font-weight: bold; color: #202124;
-            transition: border-color 0.2s;
+            font-family: 'Fredoka One', cursive;
+            transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
         }
-        .slot.active     { border-bottom-color: #1A73E8; animation: slot-pulse 0.9s ease infinite alternate; }
-        .slot.filled     { border-bottom-color: #34A853; }
+        .slot.active     { background: #fff; border-color: #1A73E8; animation: slot-pulse 0.9s ease infinite alternate; }
+        .slot.filled     { background: rgba(52,168,83,0.1); border-color: #34A853; }
         .slot.letter-pop { animation: letter-pop 0.42s cubic-bezier(0.34,1.56,0.64,1) both; }
         .slot.shake      { animation: shake 0.4s ease; }
 
-        html.dark .slot              { color: #E8EAED; border-bottom-color: #5F6368; }
-        html.dark .slot.active       { border-bottom-color: #8AB4F8; }
-        html.dark .slot.filled       { border-bottom-color: #81C995; }
+        html.dark .slot              { color: #E8EAED; background: #3C4043; border-color: #5F6368; }
+        html.dark .slot.active       { background: #2D2E30; border-color: #8AB4F8; }
+        html.dark .slot.filled       { background: rgba(129,201,149,0.14); border-color: #81C995; }
 
         /* Hint arrow — JS-created */
         .hint-arrow { font-size: clamp(0.75em,2vh,1.35em); opacity: 0; transition: opacity 0.2s; animation: bounce-down 0.55s ease infinite alternate; }
@@ -135,12 +146,15 @@
             font-size: clamp(1em, 2.8vh, 1.6em);
             height: clamp(34px, 5.5vh, 55px);
             display: flex; align-items: center; justify-content: center;
+            font-family: 'Fredoka One', cursive;
         }
         .feedback.correct   { color: #34A853; }
         .feedback.wrong     { color: #EA4335; }
         .feedback.celebrate { animation: celebrate-rock 0.4s ease infinite alternate; }
+        .feedback.idle      { color: #9AA0A6; font-size: clamp(0.85em, 2.2vh, 1.2em); animation: idle-fade 1.8s ease infinite alternate; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; }
         html.dark .feedback.correct   { color: #81C995; }
         html.dark .feedback.wrong     { color: #F28B82; }
+        html.dark .feedback.idle      { color: #80868B; }
 
         /* Animated background — Gmail-toned light / dark */
         body::before {
@@ -159,8 +173,13 @@
         .confetti-piece { position: fixed; top: -14px; pointer-events: none; z-index: 300; animation: confetti-fall linear forwards; }
         .star-pop       { position: fixed; pointer-events: none; z-index: 200; font-size: clamp(1.3em,3.5vh,2.2em); transform: translateX(-50%); animation: star-float 0.85s ease-out forwards; }
         .level-up-overlay { position: fixed; inset: 0; z-index: 250; display: flex; align-items: center; justify-content: center; pointer-events: none; animation: overlay-fade 1.5s ease forwards; }
-        .level-up-text  { font-size: clamp(2.5em,9vw,5em); font-weight: bold; text-align: center; color: white; text-shadow: 0 0 30px rgba(26,115,232,0.9), 3px 3px 0 rgba(0,0,0,0.25); animation: lu-pop 1.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
+        .level-up-text  { font-size: clamp(2.5em,9vw,5em); font-weight: bold; text-align: center; color: white; text-shadow: 0 0 30px rgba(26,115,232,0.9), 3px 3px 0 rgba(0,0,0,0.25); animation: lu-pop 1.5s cubic-bezier(0.34,1.56,0.64,1) forwards; font-family: 'Fredoka One', cursive; }
         .bg-float       { position: fixed; bottom: -60px; pointer-events: none; z-index: 0; opacity: 0.12; animation: float-up linear infinite; }
+
+        /* Display-font islands: branding + big celebratory headings, everything else reads as sans */
+        #brand-name, #welcome-title, #stats-title, #level-badge {
+            font-family: 'Fredoka One', cursive;
+        }
 
         /* Word-warning toast — floats over the bottom of the textarea instead of pushing layout */
         .word-warning-toast {
@@ -197,7 +216,8 @@
 
         /* Keyframes */
         @keyframes bounce-down    { from{transform:translateY(-4px)} to{transform:translateY(4px)} }
-        @keyframes slot-pulse     { from{border-bottom-color:#1A73E8} to{border-bottom-color:#4285F4;box-shadow:0 5px 0 rgba(26,115,232,0.2)} }
+        @keyframes slot-pulse     { from{box-shadow:0 0 0 0 rgba(26,115,232,0.35)} to{box-shadow:0 0 0 6px rgba(26,115,232,0)} }
+        @keyframes idle-fade      { from{opacity:0.55} to{opacity:1} }
         @keyframes letter-pop     { 0%{transform:scale(0) rotate(-20deg);opacity:0} 60%{transform:scale(1.35) rotate(6deg);opacity:1} 80%{transform:scale(0.92) rotate(-3deg)} 100%{transform:scale(1) rotate(0deg);opacity:1} }
         @keyframes shake          { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
         @keyframes key-pulse      { from{transform:scale(1)} to{transform:scale(1.12)} }
@@ -218,12 +238,16 @@
     <div class="max-w-[840px] w-full mx-auto h-full flex items-center gap-3" style="padding-left:var(--pad-h);padding-right:var(--pad-h)">
 
         <!-- Brand -->
-        <div class="flex flex-col justify-center min-w-0 flex-1">
-            <div class="leading-none bg-gradient-to-r from-blue-600 via-blue-500 to-green-500 dark:from-blue-400 dark:via-blue-300 dark:to-green-400 bg-clip-text text-transparent"
-                 style="font-size:clamp(1.2em,3.2vh,1.9em)">WordNest</div>
-            <div class="mt-1">
-                <span class="inline-block text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-[#3C4043] rounded-full px-2 py-0.5 leading-none"
-                      style="font-size:clamp(0.55em,1.3vh,0.78em)">Learn words, build skills</span>
+        <div class="flex items-center gap-2.5 min-w-0 flex-1">
+            <div class="flex-shrink-0 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-green-500 shadow-sm"
+                 style="width:clamp(30px,6vh,44px);height:clamp(30px,6vh,44px);font-size:clamp(1em,2.6vh,1.4em)">🪺</div>
+            <div class="flex flex-col justify-center min-w-0">
+                <div id="brand-name" class="leading-none bg-gradient-to-r from-blue-600 via-blue-500 to-green-500 dark:from-blue-400 dark:via-blue-300 dark:to-green-400 bg-clip-text text-transparent"
+                     style="font-size:clamp(1.2em,3.2vh,1.9em)">WordNest</div>
+                <div class="mt-1">
+                    <span class="inline-block text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-[#3C4043] rounded-full px-2 py-0.5 leading-none"
+                          style="font-size:clamp(0.55em,1.3vh,0.78em)">Learn words, build skills</span>
+                </div>
             </div>
         </div>
 
@@ -267,7 +291,7 @@
     <div class="bg-white dark:bg-[#2D2E30] rounded-2xl shadow-2xl w-[90%] max-w-lg max-h-[88vh] overflow-y-auto text-left"
          style="padding:clamp(20px,3.5vh,32px) clamp(22px,4vw,38px);animation:pop-in 0.2s ease;scrollbar-width:thin">
 
-        <div class="font-extrabold text-center bg-gradient-to-r from-blue-600 to-green-500 dark:from-blue-400 dark:to-green-400 bg-clip-text text-transparent mb-1"
+        <div id="welcome-title" class="font-extrabold text-center bg-gradient-to-r from-blue-600 to-green-500 dark:from-blue-400 dark:to-green-400 bg-clip-text text-transparent mb-1"
              style="font-size:clamp(1.3em,3.5vh,1.85em)">Welcome to WordNest!</div>
         <div class="text-center text-gray-400 dark:text-gray-500 mb-4" style="font-size:clamp(0.8em,1.7vh,0.95em)">
             A fun word spelling practice game for kids
@@ -320,8 +344,13 @@
 
 <!-- ═══════════════ SETUP SCREEN ═══════════════ -->
 <div id="setup-screen" class="screen active">
-    <div class="flex-shrink-0 text-center text-gray-500 dark:text-gray-400" style="font-size:clamp(0.9em,2vh,1.1em)">
-        Enter the words you want to practice:
+    <div class="flex-shrink-0 flex items-center justify-center gap-3">
+        <div class="flex-shrink-0 flex items-center justify-center rounded-full bg-gradient-to-br from-blue-100 to-green-100 dark:from-blue-900/30 dark:to-green-900/30"
+             style="width:clamp(36px,7.5vh,52px);height:clamp(36px,7.5vh,52px);font-size:clamp(1.15em,3.2vh,1.7em)">🪺</div>
+        <div class="text-center">
+            <div class="font-bold text-gray-700 dark:text-gray-200" style="font-size:clamp(0.95em,2.2vh,1.2em)">Let's build your word nest!</div>
+            <div class="text-gray-400 dark:text-gray-500" style="font-size:clamp(0.72em,1.55vh,0.88em)">Enter the words you want to practice, one per line</div>
+        </div>
     </div>
 
     <div class="relative flex-1 min-h-0 flex flex-col">
@@ -383,7 +412,7 @@ apple"></textarea>
 <!-- ═══════════════ STATS SCREEN ═══════════════ -->
 <div id="stats-screen" class="screen">
 
-    <div class="flex-shrink-0 text-center font-extrabold text-blue-600 dark:text-blue-400"
+    <div id="stats-title" class="flex-shrink-0 text-center font-extrabold text-blue-600 dark:text-blue-400"
          style="font-size:clamp(1.5em,4vh,2.5em)">🏆 You Did It!</div>
     <div class="flex-shrink-0 text-center text-gray-500 dark:text-gray-400"
          style="font-size:clamp(0.85em,1.9vh,1.1em)">Here's how you did:</div>
@@ -458,6 +487,46 @@ function startGame() {
     buildKeyboard(); loadState(); showScreen('game-screen');
 }
 
+// Soft mechanical click when a key is clicked with the mouse on the on-screen QWERTY keyboard
+// — synthesized via Web Audio (no audio file/dependency), a filtered noise burst rather than a
+// real sample. Not wired to physical keydown, so typing on a real keyboard stays silent.
+let keyClickAudioCtx = null;
+function playKeyClick() {
+    if (!keyClickAudioCtx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        keyClickAudioCtx = new AudioCtx();
+    }
+    if (keyClickAudioCtx.state === 'suspended') keyClickAudioCtx.resume();
+
+    const ctx = keyClickAudioCtx;
+    const now = ctx.currentTime;
+    const duration = 0.045;
+
+    const bufferSize = Math.max(1, Math.floor(ctx.sampleRate * duration));
+    const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / bufferSize, 2);
+    }
+
+    const noise = ctx.createBufferSource();
+    noise.buffer = buffer;
+
+    const bandpass = ctx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = 1800 + Math.random() * 500;
+    bandpass.Q.value = 1.1;
+
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.16, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    noise.connect(bandpass).connect(gain).connect(ctx.destination);
+    noise.start(now);
+    noise.stop(now + duration);
+}
+
 function buildKeyboard() {
     const kb = document.getElementById('keyboard');
     kb.innerHTML = '';
@@ -473,7 +542,7 @@ function buildKeyboard() {
             btn.style.color = 'white';
             btn.style.borderColor = 'rgba(0,0,0,0.18)';
             btn.style.textShadow = '0 1px 3px rgba(0,0,0,0.3)';
-            btn.addEventListener('click', () => onKey(ch));
+            btn.addEventListener('click', () => { playKeyClick(); onKey(ch); });
             rowDiv.appendChild(btn);
         });
         kb.appendChild(rowDiv);
@@ -583,8 +652,8 @@ function loadState() {
     const hintBtn = document.getElementById('hint-btn');
     hintBtn.style.display = level === 2 ? 'inline-block' : 'none';
     hintBtn.disabled = false; hintBtn.textContent = '💡 Show Hint';
-    document.getElementById('feedback').textContent = '';
-    document.getElementById('feedback').className = 'feedback';
+    document.getElementById('feedback').textContent = '👉 Type the first letter!';
+    document.getElementById('feedback').className = 'feedback idle';
     resetKeys();
     if (level === 1) applyHint1();
     speakWord();
