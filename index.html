@@ -425,6 +425,8 @@ apple"></textarea>
                         style="padding:clamp(8px,1.5vh,14px);font-size:clamp(0.88em,2vh,1.1em)">Word</th>
                     <th class="bg-blue-600 dark:bg-blue-700 text-white text-center sticky top-0"
                         style="padding:clamp(8px,1.5vh,14px);font-size:clamp(0.88em,2vh,1.1em)">Wrong Tries</th>
+                    <th class="bg-blue-600 dark:bg-blue-700 text-white text-center sticky top-0"
+                        style="padding:clamp(8px,1.5vh,14px);font-size:clamp(0.88em,2vh,1.1em)">Hint Used</th>
                     <th class="bg-blue-600 dark:bg-blue-700 text-white text-left sticky top-0"
                         style="padding:clamp(8px,1.5vh,14px);font-size:clamp(0.88em,2vh,1.1em)">Score</th>
                 </tr>
@@ -433,7 +435,9 @@ apple"></textarea>
         </table>
     </div>
 
-    <div class="flex-shrink-0 flex justify-center">
+    <div class="flex-shrink-0 flex justify-center flex-wrap" style="gap:clamp(8px,1.5vw,14px)">
+        <button class="font-bold rounded-full bg-green-600 dark:bg-green-500 text-white px-8 py-3 transition-all shadow-[0_4px_0_rgba(0,0,0,0.2)] hover:bg-green-700 dark:hover:bg-green-400 hover:-translate-y-0.5 hover:shadow-[0_6px_0_rgba(0,0,0,0.2)] active:translate-y-0.5"
+                style="font-size:clamp(0.95em,2.3vh,1.3em);display:none" id="practice-weak-btn" onclick="practiceWeakWords()">Practice Weak Words 🎯</button>
         <button class="font-bold rounded-full bg-blue-600 dark:bg-blue-500 text-white px-8 py-3 transition-all shadow-[0_4px_0_rgba(0,0,0,0.2)] hover:bg-blue-700 dark:hover:bg-blue-400 hover:-translate-y-0.5 hover:shadow-[0_6px_0_rgba(0,0,0,0.2)] active:translate-y-0.5"
                 style="font-size:clamp(0.95em,2.3vh,1.3em)" onclick="backToSetup()">Practice Again! 🔄</button>
     </div>
@@ -467,6 +471,7 @@ let wordIdx = 0;
 let level = 1;
 let letterIdx = 0;
 let wrongAttempts = {};
+let hintsUsed = {};
 let levelDone = false;
 let feedbackTimer = null;
 let hintTimer = null;
@@ -481,7 +486,7 @@ function startGame() {
     if (!raw) { alert('Please enter at least one word!'); return; }
     words = raw.split(/[\n,]+/).map(w => w.trim().toUpperCase()).filter(w => /^[A-Z]+$/.test(w) && w.length <= 45 && !PROFANITY.has(w));
     if (words.length === 0) { alert('Please enter valid words (letters only, one per line)!'); return; }
-    words.forEach(w => { wrongAttempts[w] = 0; });
+    words.forEach(w => { wrongAttempts[w] = 0; hintsUsed[w] = false; });
     wordIdx = 0; level = 1;
     gtag('event', 'game_started', { word_count: words.length });
     buildKeyboard(); loadState(); showScreen('game-screen');
@@ -709,6 +714,7 @@ function submitVerify() {
 }
 function grantHint() {
     if (levelDone) return;
+    hintsUsed[words[wordIdx]] = true;
     const ch = words[wordIdx][letterIdx];
     setKeyGlow(ch, true);
     const btn = document.getElementById('hint-btn');
@@ -776,6 +782,17 @@ function goNext() {
     }
 }
 
+// Tier 0 is the top score. Using a hint costs the equivalent of 3 wrong tries, so a
+// hinted word can never come out "Perfect!" even with zero wrong key presses.
+const SCORE_TIERS = ['🥇 Perfect!', '🥈 Well done!', '🥉 Good try!', '💪 Keep practicing!'];
+function wordTier(w) {
+    const effective = wrongAttempts[w] + (hintsUsed[w] ? 3 : 0);
+    if (effective === 0) return 0;
+    if (effective <= 3) return 1;
+    if (effective <= 8) return 2;
+    return 3;
+}
+
 function showStats() {
     showScreen('stats-screen');
     gtag('event', 'game_completed', { word_count: words.length });
@@ -784,15 +801,30 @@ function showStats() {
     tbody.innerHTML = '';
     words.forEach(w => {
         const n = wrongAttempts[w];
-        const score = n === 0 ? '🥇 Perfect!' : n <= 3 ? '🥈 Well done!' : n <= 8 ? '🥉 Good try!' : '💪 Keep practicing!';
+        const score = SCORE_TIERS[wordTier(w)];
+        const hint = hintsUsed[w] ? '💡 Yes' : '—';
         const display = w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td><strong>${display}</strong></td><td style="text-align:center">${n}</td><td>${score}</td>`;
+        tr.innerHTML = `<td><strong>${display}</strong></td><td style="text-align:center">${n}</td><td style="text-align:center">${hint}</td><td>${score}</td>`;
         tbody.appendChild(tr);
     });
+
+    const weakWords = words.filter(w => wordTier(w) > 0);
+    const weakBtn = document.getElementById('practice-weak-btn');
+    weakBtn.style.display = weakWords.length > 0 ? 'inline-block' : 'none';
 }
 
 function backToSetup() { gtag('event', 'practice_again'); showScreen('setup-screen'); }
+
+function practiceWeakWords() {
+    const weakWords = words.filter(w => wordTier(w) > 0);
+    if (weakWords.length === 0) return;
+    words = weakWords;
+    words.forEach(w => { wrongAttempts[w] = 0; hintsUsed[w] = false; });
+    wordIdx = 0; level = 1;
+    gtag('event', 'practice_weak_words', { word_count: words.length });
+    buildKeyboard(); loadState(); showScreen('game-screen');
+}
 
 function showWelcome()  { document.getElementById('welcome-modal').classList.add('open'); }
 function closeWelcome() { document.getElementById('welcome-modal').classList.remove('open'); localStorage.setItem('spellbee-visited', '1'); }
