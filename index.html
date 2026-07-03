@@ -162,6 +162,33 @@
         .level-up-text  { font-size: clamp(2.5em,9vw,5em); font-weight: bold; text-align: center; color: white; text-shadow: 0 0 30px rgba(26,115,232,0.9), 3px 3px 0 rgba(0,0,0,0.25); animation: lu-pop 1.5s cubic-bezier(0.34,1.56,0.64,1) forwards; }
         .bg-float       { position: fixed; bottom: -60px; pointer-events: none; z-index: 0; opacity: 0.12; animation: float-up linear infinite; }
 
+        /* Word-warning toast — floats over the bottom of the textarea instead of pushing layout */
+        .word-warning-toast {
+            position: absolute; left: 10px; right: 10px; bottom: 10px; z-index: 5;
+            display: flex; flex-direction: column; gap: 6px;
+            max-height: calc(100% - 20px); overflow-y: auto;
+            pointer-events: none;
+            opacity: 0; transform: translateY(10px);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+        }
+        .word-warning-toast.visible { opacity: 1; transform: translateY(0); }
+        .warning-chip {
+            display: flex; align-items: flex-start; gap: 8px;
+            padding: clamp(6px,1vh,10px) clamp(10px,1.6vw,14px);
+            border-radius: 12px; border-left: 4px solid transparent;
+            font-family: system-ui, sans-serif; font-weight: 500;
+            font-size: clamp(0.72em, 1.5vh, 0.85em); line-height: 1.35;
+            box-shadow: 0 3px 14px rgba(0,0,0,0.16);
+            backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        }
+        .warning-chip .chip-icon { flex-shrink: 0; font-size: 1.2em; line-height: 1.2; }
+        .warning-chip.sev-block   { background: rgba(253,237,237,0.96); border-left-color: #EA4335; color: #8A1C13; }
+        .warning-chip.sev-caution { background: rgba(254,247,224,0.96); border-left-color: #F9AB00; color: #7A5900; }
+        .warning-chip.sev-info    { background: rgba(227,238,253,0.96); border-left-color: #1A73E8; color: #0B4396; }
+        html.dark .warning-chip.sev-block   { background: rgba(58,32,30,0.96); border-left-color: #F28B82; color: #F6AEA9; }
+        html.dark .warning-chip.sev-caution { background: rgba(58,49,20,0.96); border-left-color: #FDD663; color: #FDE293; }
+        html.dark .warning-chip.sev-info    { background: rgba(24,42,66,0.96); border-left-color: #8AB4F8; color: #AECBFA; }
+
         /* Stats table body rows — built by JS */
         #stats-body td { padding: clamp(8px,1.3vh,12px) 14px; border-bottom: 1px solid #E8EAED; font-size: clamp(0.88em,1.9vh,1.1em); }
         #stats-body tr:nth-child(even) td { background: #F8F9FA; }
@@ -297,10 +324,12 @@
         Enter the words you want to practice:
     </div>
 
-    <textarea id="words-input"
-              class="flex-1 min-h-0 resize-none rounded-2xl border-2 border-gray-300 dark:border-[#5F6368] bg-white dark:bg-[#2D2E30] dark:text-gray-100 outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
-              style="font-size:clamp(1em,2.2vh,1.3em);padding:clamp(10px,1.5vh,16px)"
-              placeholder="Enter words to practice (one per line):
+    <div class="relative flex-1 min-h-0 flex flex-col">
+        <textarea id="words-input"
+                  class="flex-1 min-h-0 resize-none rounded-2xl border-2 border-gray-300 dark:border-[#5F6368] bg-white dark:bg-[#2D2E30] dark:text-gray-100 outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
+                  style="font-size:clamp(1em,2.2vh,1.3em);padding:clamp(10px,1.5vh,16px)"
+                  spellcheck="true" lang="en"
+                  placeholder="Enter words to practice (one per line):
 
 cat
 dog
@@ -308,7 +337,8 @@ bird
 fish
 apple"></textarea>
 
-    <div id="word-warning" class="hidden flex-shrink-0 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-300 px-4 py-2" style="font-size:clamp(0.8em,1.7vh,0.95em)"></div>
+        <div id="word-warning" class="word-warning-toast" role="alert"></div>
+    </div>
 
     <div class="flex-shrink-0 flex justify-center">
         <button class="font-bold rounded-full bg-blue-600 dark:bg-blue-500 text-white px-8 py-3 transition-all shadow-[0_4px_0_rgba(0,0,0,0.2)] hover:bg-blue-700 dark:hover:bg-blue-400 hover:-translate-y-0.5 hover:shadow-[0_6px_0_rgba(0,0,0,0.2)] active:translate-y-0.5"
@@ -420,7 +450,7 @@ function showScreen(id) {
 function startGame() {
     const raw = document.getElementById('words-input').value.trim();
     if (!raw) { alert('Please enter at least one word!'); return; }
-    words = raw.split(/[\n,]+/).map(w => w.trim().toUpperCase()).filter(w => /^[A-Z]+$/.test(w) && w.length <= 45);
+    words = raw.split(/[\n,]+/).map(w => w.trim().toUpperCase()).filter(w => /^[A-Z]+$/.test(w) && w.length <= 45 && !PROFANITY.has(w));
     if (words.length === 0) { alert('Please enter valid words (letters only, one per line)!'); return; }
     words.forEach(w => { wrongAttempts[w] = 0; });
     wordIdx = 0; level = 1;
@@ -725,17 +755,64 @@ function findTooLongWords(raw) {
         .filter(w => /^[A-Z]+$/.test(w) && w.length > 45);
 }
 
-document.getElementById('words-input').addEventListener('input', () => {
-    const tooLong = findTooLongWords(document.getElementById('words-input').value);
+const PROFANITY = new Set(
+    atob('YW5hbCxhbnVzLGFyc2UsYXNzLGFzc2hvbGUsYmFzdGFyZCxiaXRjaCxib2xsb2Nrcyxib25lcixib29iLGJvb2JzLGJ1dHRwbHVnLGNsaXQsY29jayxjb29uLGNyYXAsY3VtLGN1bnQsZGFtbixkaWNrLGRpbGRvLGRvdWNoZSxkeWtlLGZhZyxmYWdnb3QsZnVjayxmdWNrZXIsZnVja2luZyxnb29rLGhhbmRqb2IsaGVsbCxob2UsaG9tbyxqZXJrb2ZmLGppenosa2lrZSxrcmF1dCxtaW5nZSxuYXppLG5lZ3JvLG5pZ2dhLG5pZ2dlcixudXRzYWNrLHBha2kscGVuaXMscGlzcyxwaXNzZWQscG9ybixwcmljayxwdWJlLHB1c3N5LHF1ZWVyLHJhcGUscmFwaXN0LHJldGFyZCxyZXRhcmRlZCxzY3JvdHVtLHNleCxzaGl0LHNoaXRlLHNsdXQsc21lZ21hLHNwaWMsdGl0LHRpdHMsdGl0dHksdG9zc2VyLHR3YXQsdmFnaW5hLHdhbmssd2Fua2VyLHdob3JlLHdvcA==')
+        .split(',')
+        .map(w => w.toUpperCase())
+);
+
+function findProfaneWords(raw) {
+    return raw
+        .split(/[\n,]+/)
+        .map(w => w.trim().toUpperCase())
+        .filter(w => /^[A-Z]+$/.test(w) && PROFANITY.has(w));
+}
+
+let dictionary = null;
+fetch('https://cdn.jsdelivr.net/npm/word-list@4.0.0/words.txt')
+    .then(r => r.text())
+    .then(text => {
+        dictionary = new Set(text.split('\n').map(w => w.trim()).filter(Boolean));
+        updateWordWarnings();
+    })
+    .catch(() => { dictionary = null; });
+
+function findMisspelledWords(raw) {
+    if (!dictionary) return [];
+    return raw
+        .split(/[\n,]+/)
+        .map(w => w.trim().toUpperCase())
+        .filter(w => /^[A-Z]+$/.test(w) && w.length <= 45 && !PROFANITY.has(w) && !dictionary.has(w.toLowerCase()));
+}
+
+function warningChip(severity, icon, text) {
+    return `<div class="warning-chip ${severity}"><span class="chip-icon">${icon}</span><span>${text}</span></div>`;
+}
+
+function updateWordWarnings() {
+    const raw = document.getElementById('words-input').value;
+    const tooLong = findTooLongWords(raw);
+    const profane = findProfaneWords(raw);
+    const misspelled = findMisspelledWords(raw);
     const box = document.getElementById('word-warning');
+    const chips = [];
+    if (profane.length > 0) {
+        const word = profane.length === 1 ? 'word' : 'words';
+        chips.push(warningChip('sev-block', '🚫', `Not appropriate for practice — ${profane.length} ${word} will be skipped`));
+    }
     if (tooLong.length > 0) {
         const list = tooLong.map(w => `"${w.charAt(0) + w.slice(1).toLowerCase()}" (${w.length} letters)`).join(', ');
-        box.textContent = `⚠️ Too long — max 45 letters: ${list}`;
-        box.classList.remove('hidden');
-    } else {
-        box.classList.add('hidden');
+        chips.push(warningChip('sev-caution', '⚠️', `Too long — max 45 letters: ${list}`));
     }
-});
+    if (misspelled.length > 0) {
+        const list = misspelled.map(w => `"${w.charAt(0) + w.slice(1).toLowerCase()}"`).join(', ');
+        chips.push(warningChip('sev-info', '✏️', `Double-check spelling: ${list}`));
+    }
+    box.innerHTML = chips.join('');
+    box.classList.toggle('visible', chips.length > 0);
+}
+
+document.getElementById('words-input').addEventListener('input', updateWordWarnings);
 
 document.getElementById('verify-answer').addEventListener('keydown', e => {
     if (e.key === 'Enter') { e.preventDefault(); submitVerify(); }
