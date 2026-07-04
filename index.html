@@ -305,6 +305,19 @@
     </div>
 </div>
 
+<!-- ═══════════════ MEANING MODAL ═══════════════ -->
+<div class="modal-overlay fixed inset-0 bg-black/50 z-[100] items-center justify-center" id="meaning-modal">
+    <div class="bg-white dark:bg-[#2D2E30] rounded-2xl shadow-2xl text-left w-[90%] max-w-md max-h-[80vh] overflow-y-auto"
+         style="padding:clamp(20px,3.5vh,32px) clamp(22px,4vw,38px);animation:pop-in 0.2s ease;scrollbar-width:thin">
+        <div class="font-bold text-blue-600 dark:text-blue-400 mb-2" id="meaning-word" style="font-size:clamp(1.2em,2.8vh,1.6em)"></div>
+        <div id="meaning-body" class="text-gray-600 dark:text-gray-300" style="font-size:clamp(0.85em,1.9vh,1.05em)"></div>
+        <div class="mt-4 flex justify-center">
+            <button class="font-bold rounded-full bg-gray-200 dark:bg-[#3C4043] text-gray-700 dark:text-gray-300 px-6 py-2.5 transition-all shadow-[0_4px_0_rgba(0,0,0,0.15)] hover:bg-gray-300 dark:hover:bg-[#5F6368] hover:-translate-y-0.5 active:translate-y-0.5"
+                    style="font-size:clamp(0.95em,2.3vh,1.3em)" onclick="closeMeaning()">✖ Close</button>
+        </div>
+    </div>
+</div>
+
 <!-- ═══════════════ WELCOME MODAL ═══════════════ -->
 <div class="modal-overlay fixed inset-0 bg-black/50 z-[100] items-center justify-center" id="welcome-modal">
     <div class="bg-white dark:bg-[#2D2E30] rounded-2xl shadow-2xl w-[90%] max-w-lg max-h-[88vh] overflow-y-auto text-left"
@@ -420,9 +433,11 @@ apple"></textarea>
                 style="font-size:clamp(0.95em,2.3vh,1.3em);display:none" id="next-btn" onclick="goNext()">Next ➡️</button>
     </div>
 
-    <div class="flex-shrink-0 flex justify-center">
+    <div class="flex-shrink-0 flex justify-center" style="gap:clamp(6px,1.2vw,12px)">
         <button class="font-bold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 transition-all hover:bg-blue-200 dark:hover:bg-blue-900/50 active:translate-y-0.5"
                 style="font-size:clamp(0.8em,1.7vh,1em);padding:clamp(4px,0.8vh,7px) 14px" id="speak-btn" onclick="speakWord()">🔊 Hear Word</button>
+        <button class="font-bold rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 transition-all hover:bg-blue-200 dark:hover:bg-blue-900/50 active:translate-y-0.5"
+                style="font-size:clamp(0.8em,1.7vh,1em);padding:clamp(4px,0.8vh,7px) 14px" id="meaning-btn" onclick="showMeaning()">📖 Meaning</button>
     </div>
 
     <div class="flex-1 min-h-0 flex flex-col justify-center" id="keyboard"></div>
@@ -678,6 +693,7 @@ function loadState() {
     const hintBtn = document.getElementById('hint-btn');
     hintBtn.style.display = level === 2 ? 'inline-block' : 'none';
     hintBtn.disabled = false; hintBtn.textContent = '💡 Show Hint';
+    document.getElementById('meaning-btn').style.display = level === 1 ? 'inline-block' : 'none';
     document.getElementById('feedback').textContent = '👉 Type the first letter!';
     document.getElementById('feedback').className = 'feedback idle';
     resetKeys();
@@ -694,6 +710,41 @@ function speakWord() {
     const utter = new SpeechSynthesisUtterance(spoken);
     utter.rate = 0.85;
     speechSynthesis.speak(utter);
+}
+
+function showMeaning(word) {
+    word = word || words[wordIdx];
+    if (!word) return;
+    document.getElementById('meaning-word').textContent = word.charAt(0) + word.slice(1).toLowerCase();
+    document.getElementById('meaning-body').textContent = 'Looking it up…';
+    document.getElementById('meaning-modal').classList.add('open');
+    fetchMeaning(word);
+}
+function closeMeaning() { document.getElementById('meaning-modal').classList.remove('open'); }
+
+function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+async function fetchMeaning(word) {
+    const body = document.getElementById('meaning-body');
+    try {
+        const res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word.toLowerCase())}`);
+        if (!res.ok) throw new Error('not found');
+        const data = await res.json();
+        const meanings = data[0] && data[0].meanings || [];
+        if (!meanings.length) throw new Error('no meanings');
+        body.innerHTML = meanings.slice(0, 2).map(m => {
+            const def = m.definitions[0];
+            let html = `<div class="mb-2"><span class="italic text-gray-400 dark:text-gray-500">${escapeHtml(m.partOfSpeech)}</span><br>${escapeHtml(def.definition)}`;
+            if (def.example) html += `<br><span class="italic text-gray-400 dark:text-gray-500">"${escapeHtml(def.example)}"</span>`;
+            return html + '</div>';
+        }).join('');
+    } catch (e) {
+        body.textContent = "No definition found for this word.";
+    }
 }
 
 function applyHint1() {
@@ -826,7 +877,7 @@ function showStats() {
         const hint = hintsUsed[w] ? '💡 Yes' : '—';
         const display = w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td><strong>${display}</strong></td><td style="text-align:center">${n}</td><td style="text-align:center">${hint}</td><td>${score}</td>`;
+        tr.innerHTML = `<td><strong>${display}</strong> <button class="align-middle rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50" style="font-size:0.75em;padding:2px 8px" onclick="showMeaning('${w}')" title="See meaning">📖</button></td><td style="text-align:center">${n}</td><td style="text-align:center">${hint}</td><td>${score}</td>`;
         tbody.appendChild(tr);
     });
 
