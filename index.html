@@ -385,6 +385,27 @@
         </div>
     </div>
 
+    <div class="flex-shrink-0 rounded-2xl bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30"
+         style="padding:clamp(10px,1.6vh,16px) clamp(12px,2vw,18px)">
+        <div class="font-bold text-gray-700 dark:text-gray-200" style="font-size:clamp(0.85em,1.9vh,1.05em)">🎲 Or get random everyday words to practice</div>
+        <div class="flex items-center flex-wrap mt-2" style="gap:clamp(8px,1.5vw,14px)">
+            <div class="flex items-center" style="gap:6px">
+                <button type="button" class="random-count-btn font-bold rounded-full border-2 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300 transition-colors"
+                        style="font-size:clamp(0.78em,1.6vh,0.95em);padding:clamp(3px,0.6vh,5px) 12px" data-count="5" onclick="selectRandomCount(5)">5</button>
+                <button type="button" class="random-count-btn font-bold rounded-full border-2 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300 transition-colors"
+                        style="font-size:clamp(0.78em,1.6vh,0.95em);padding:clamp(3px,0.6vh,5px) 12px;background:#1A73E8;color:#fff" data-count="10" onclick="selectRandomCount(10)">10</button>
+                <button type="button" class="random-count-btn font-bold rounded-full border-2 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300 transition-colors"
+                        style="font-size:clamp(0.78em,1.6vh,0.95em);padding:clamp(3px,0.6vh,5px) 12px" data-count="15" onclick="selectRandomCount(15)">15</button>
+                <button type="button" class="random-count-btn font-bold rounded-full border-2 border-blue-500 dark:border-blue-400 text-blue-600 dark:text-blue-300 transition-colors"
+                        style="font-size:clamp(0.78em,1.6vh,0.95em);padding:clamp(3px,0.6vh,5px) 12px" data-count="20" onclick="selectRandomCount(20)">20</button>
+            </div>
+            <button type="button" id="generate-btn"
+                    class="font-bold rounded-full bg-green-600 dark:bg-green-500 text-white transition-all shadow-[0_4px_0_rgba(0,0,0,0.2)] hover:bg-green-700 dark:hover:bg-green-400 active:translate-y-0.5"
+                    style="font-size:clamp(0.8em,1.7vh,1em);padding:clamp(4px,0.8vh,7px) 16px" onclick="generateRandomWords()">🎲 Generate</button>
+        </div>
+        <div id="generate-status" class="text-gray-500 dark:text-gray-400 mt-2" style="font-size:clamp(0.72em,1.5vh,0.85em);min-height:1.2em"></div>
+    </div>
+
     <div class="relative flex-1 min-h-0 flex flex-col">
         <textarea id="words-input"
                   class="flex-1 min-h-0 resize-none rounded-2xl border-2 border-gray-300 dark:border-[#5F6368] bg-white dark:bg-[#2D2E30] dark:text-gray-100 outline-none focus:border-blue-500 dark:focus:border-blue-400 transition-colors"
@@ -477,6 +498,7 @@ apple"></textarea>
     </div>
 </div>
 
+<script src="words.js"></script>
 <script>
 const QWERTY = [
     ['Q','W','E','R','T','Y','U','I','O','P'],
@@ -526,6 +548,69 @@ function startGame() {
     buildKeyboard(); loadState(); showScreen('game-screen');
 }
 
+// Random word practice — sampled from EVERYDAY_WORDS (words.js), a curated pool of
+// common everyday words, so results stay familiar and easy rather than skewing
+// toward obscure vocabulary. Words already served this session, and words practiced
+// in the last 24 hours (tracked in localStorage), are excluded so kids see fresh words.
+let randomWordCount = 10;
+let sessionUsedWords = new Set();
+
+const PRACTICED_KEY = 'wordnest-practiced-words';
+const PRACTICED_TTL_MS = 24 * 60 * 60 * 1000;
+
+function getPracticedWords() {
+    let store;
+    try { store = JSON.parse(localStorage.getItem(PRACTICED_KEY)) || {}; } catch (e) { store = {}; }
+    const now = Date.now();
+    let changed = false;
+    Object.keys(store).forEach(w => {
+        if (now - store[w] > PRACTICED_TTL_MS) { delete store[w]; changed = true; }
+    });
+    if (changed) localStorage.setItem(PRACTICED_KEY, JSON.stringify(store));
+    return store;
+}
+
+function markWordPracticed(word) {
+    if (!word) return;
+    const store = getPracticedWords();
+    store[word.toLowerCase()] = Date.now();
+    localStorage.setItem(PRACTICED_KEY, JSON.stringify(store));
+}
+
+function selectRandomCount(n) {
+    randomWordCount = n;
+    document.querySelectorAll('.random-count-btn').forEach(btn => {
+        const active = Number(btn.dataset.count) === n;
+        btn.style.background = active ? '#1A73E8' : '';
+        btn.style.color = active ? '#fff' : '';
+    });
+}
+
+function generateRandomWords() {
+    const practiced = new Set(Object.keys(getPracticedWords()));
+
+    let pool = EVERYDAY_WORDS.filter(w => !sessionUsedWords.has(w) && !practiced.has(w));
+    if (pool.length < randomWordCount) pool = EVERYDAY_WORDS.filter(w => !sessionUsedWords.has(w));
+    if (pool.length < randomWordCount) { sessionUsedWords.clear(); pool = [...EVERYDAY_WORDS]; }
+
+    const count = Math.min(randomWordCount, pool.length);
+    const working = [...pool];
+    const list = [];
+    for (let i = 0; i < count; i++) {
+        const idx = Math.floor(Math.random() * working.length);
+        list.push(working.splice(idx, 1)[0]);
+    }
+    list.forEach(w => sessionUsedWords.add(w));
+
+    document.getElementById('words-input').value = list.join('\n');
+    // Words come pre-vetted from EVERYDAY_WORDS, so skip the spellcheck/profanity banner here —
+    // it only re-appears if the parent edits the generated list by hand afterward.
+    const warningBox = document.getElementById('word-warning');
+    warningBox.innerHTML = '';
+    warningBox.classList.remove('visible');
+    document.getElementById('generate-status').textContent = `Generated ${list.length} everyday words to practice!`;
+}
+
 // Soft mechanical click when a key is clicked with the mouse on the on-screen QWERTY keyboard
 // — synthesized via Web Audio (no audio file/dependency), a filtered noise burst rather than a
 // real sample. Not wired to physical keydown, so typing on a real keyboard stays silent.
@@ -568,6 +653,27 @@ function playKeyClick() {
     noise.stop(now + duration);
 }
 
+// Picks white or dark key-label text based on the actual contrast each option gets
+// against that key's background, so every letter clears WCAG AA for large bold text
+// (>=3:1) — a plain hardcoded white failed that on most of the KEY_COLORS palette.
+function relativeLuminance(hex) {
+    const c = hex.replace('#', '');
+    const [r, g, b] = [0, 2, 4].map(i => parseInt(c.slice(i, i + 2), 16) / 255);
+    const lin = v => v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+    return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+function contrastRatio(hex1, hex2) {
+    const l1 = relativeLuminance(hex1), l2 = relativeLuminance(hex2);
+    const [a, b] = l1 > l2 ? [l1, l2] : [l2, l1];
+    return (a + 0.05) / (b + 0.05);
+}
+function keyTextStyle(bgHex) {
+    const useDark = contrastRatio(bgHex, '#202124') >= contrastRatio(bgHex, '#FFFFFF');
+    return useDark
+        ? { color: '#202124', textShadow: '0 1px 1px rgba(255,255,255,0.4)' }
+        : { color: 'white', textShadow: '0 1px 3px rgba(0,0,0,0.3)' };
+}
+
 function buildKeyboard() {
     const kb = document.getElementById('keyboard');
     kb.innerHTML = '';
@@ -579,10 +685,12 @@ function buildKeyboard() {
             btn.className = 'key';
             btn.id = 'key-' + ch;
             btn.textContent = ch;
-            btn.style.background = KEY_COLORS[ch] || '#888';
-            btn.style.color = 'white';
+            const bg = KEY_COLORS[ch] || '#888';
+            const { color, textShadow } = keyTextStyle(bg);
+            btn.style.background = bg;
+            btn.style.color = color;
             btn.style.borderColor = 'rgba(0,0,0,0.18)';
-            btn.style.textShadow = '0 1px 3px rgba(0,0,0,0.3)';
+            btn.style.textShadow = textShadow;
             btn.addEventListener('click', () => { playKeyClick(); onKey(ch); });
             rowDiv.appendChild(btn);
         });
@@ -592,9 +700,12 @@ function buildKeyboard() {
 
 function restoreKey(el) {
     const ch = el.textContent;
-    el.style.background = KEY_COLORS[ch] || '#888';
-    el.style.color = 'white';
+    const bg = KEY_COLORS[ch] || '#888';
+    const { color, textShadow } = keyTextStyle(bg);
+    el.style.background = bg;
+    el.style.color = color;
     el.style.borderColor = 'rgba(0,0,0,0.18)';
+    el.style.textShadow = textShadow;
     el.style.boxShadow = '';
     el.classList.remove('hint-glow');
 }
@@ -815,6 +926,7 @@ function onKey(ch) {
         if (letterIdx >= word.length) {
             levelDone = true; resetKeys(); clearTimeout(hintTimer);
             document.getElementById('hint-btn').style.display = 'none';
+            document.getElementById('meaning-btn').style.display = 'inline-block';
             setFeedback('🌟 Amazing! 🌟', 'celebrate', 0);
             document.getElementById('next-btn').style.display = 'inline-block';
             if (level === 3) launchConfetti(55);
@@ -848,6 +960,7 @@ function goNext() {
         showLevelUp(`${'⭐'.repeat(level)}<br>Level ${level}!`);
         setTimeout(loadState, 700);
     } else {
+        markWordPracticed(words[wordIdx]);
         wordIdx++; level = 1;
         if (wordIdx >= words.length) { showStats(); }
         else { showLevelUp('🎯 Next Word!'); setTimeout(loadState, 700); }

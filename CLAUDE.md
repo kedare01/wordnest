@@ -4,11 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-**WordNest** — single-file browser spelling game for kids (`index.html`). Open directly in any browser; no server, no build step, no dependencies. Hosted as-is on GitHub Pages, which serves `index.html` from the repo root directly.
+**WordNest** — browser spelling game for kids, built from `index.html` plus a static word-list data file (`words.js`). Open `index.html` directly in any browser; no server, no build step. Hosted as-is on GitHub Pages, which serves the repo root directly.
 
 ## Architecture
 
-Everything lives in `index.html`: inline `<style>`, HTML markup, and an inline `<script>`. Runtime dependencies are CDN-loaded (Tailwind CSS Play CDN, Google Fonts — requires internet).
+`index.html` holds inline `<style>`, HTML markup, and an inline `<script>`. `words.js` is loaded via a plain `<script src="words.js">` tag before the inline script and defines `EVERYDAY_WORDS`, a flat global array — no build step or module system involved. Runtime dependencies are CDN-loaded (Tailwind CSS Play CDN, Google Fonts — requires internet).
 
 **Three screens** share the same DOM; only one has `class="active"` at a time:
 - `#setup-screen` — parent enters words (one per line)
@@ -28,6 +28,8 @@ Everything lives in `index.html`: inline `<style>`, HTML markup, and an inline `
 
 **Init sequence:** at script load time, `createBgFloats()` creates the ambient floating emoji elements, then dark mode is restored from `localStorage`, then the welcome modal is shown on first visit.
 
+**Random word practice:** `generateRandomWords()` samples `randomWordCount` (5/10/15/20, picked via `.random-count-btn` buttons) words from `EVERYDAY_WORDS` (defined in `words.js`, ~9.4k common English words filtered from Google's frequency list) and fills `#words-input`. Two exclusion layers keep results fresh: `sessionUsedWords` (in-memory `Set`, cleared only on page reload) skips words already generated this session, and `getPracticedWords()`/`markWordPracticed()` track words the player has fully completed (Level 3 done, called from `goNext()`) in the `wordnest-practiced-words` localStorage key with a 24-hour TTL. If the pool would run dry under both exclusions, `generateRandomWords()` relaxes the 24h exclusion first, then resets `sessionUsedWords` — the generator always returns the requested count if `EVERYDAY_WORDS` has enough entries.
+
 ## Key state variables
 
 All module-level `let` in the inline script:
@@ -42,6 +44,7 @@ All module-level `let` in the inline script:
 |-----|---------|
 | `wordnest-theme` | `"dark"` or `"light"`; absent means respect OS preference |
 | `spellbee-visited` | Truthy after first visit; suppresses welcome modal on return |
+| `wordnest-practiced-words` | JSON map of lowercase word → timestamp last fully practiced (Level 3 completed); entries older than 24h are pruned lazily on read. Used by `generateRandomWords()` to avoid repeating recently-practiced words. |
 
 ## Modals
 
